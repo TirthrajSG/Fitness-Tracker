@@ -24,16 +24,38 @@
     </div>
   </div>
 
+  {% if is_sqlite %}
+  <div class="col-md-6">
+    <div class="card metric-card p-3 h-100">
+      <strong>Backup database</strong>
+      <p class="text-muted small mt-1">Download the entire SQLite database file as a single backup.</p>
+      <a href="{{ url_for('data.backup') }}" class="btn btn-outline-secondary">Download backup (.db)</a>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card metric-card p-3 h-100">
+      <strong>Restore database</strong>
+      <p class="text-muted small mt-1">Replaces the current database with an uploaded .db backup file. Restart the app afterward.</p>
+      <form method="post" action="{{ url_for('data.restore') }}" enctype="multipart/form-data" class="d-flex gap-2" onsubmit="return confirm('This replaces all current data with the uploaded backup. Continue?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="file" name="db_file" accept=".db" class="form-control" required>
+        <button class="btn btn-outline-secondary">Restore</button>
+      </form>
+    </div>
+  </div>
+  {% else %}
   <div class="col-12">
     <div class="card metric-card p-3 h-100">
-      <strong>Backup / restore</strong>
+      <strong>Backup / restore (Postgres)</strong>
       <p class="text-muted small mt-1">
-        This app runs on Postgres, so there's no local database file to download or restore. Use the
-        CSV export above as your working backup, and rely on your Render Postgres dashboard for
-        full-fidelity snapshots and point-in-time restore.
+        You're running on Postgres, so file-based backup/restore isn't available here. Use the CSV
+        export above as your data backup, or take a snapshot from your Render Postgres dashboard
+        for a full-fidelity backup you can restore from.
       </p>
     </div>
   </div>
+  {% endif %}
 
   <div class="col-12">
     <div class="card metric-card p-3 border border-danger">

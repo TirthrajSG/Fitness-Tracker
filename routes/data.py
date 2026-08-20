@@ -4,12 +4,22 @@ import zipfile
 from datetime import datetime
 
 from flask import (Blueprint, render_template, request, redirect, url_for,
-                    flash, send_file)
+                    flash, send_file, current_app)
 
 from models import (db, WeightEntry, BodyMeasurement, Food, FoodLog, Exercise,
                      Workout, WorkoutExercise, SetEntry, WorkoutTemplate, TemplateExercise)
 
 bp = Blueprint("data", __name__, url_prefix="/data")
+
+
+def _is_sqlite():
+    # File-based backup/restore only makes sense against the local SQLite
+    # file. Once DATABASE_URL points at Postgres, use CSV export instead.
+    return current_app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite:///")
+
+
+def _sqlite_db_path():
+    return current_app.config["SQLALCHEMY_DATABASE_URI"].replace("sqlite:///", "", 1)
 
 
 def _table_to_csv(rows, fieldnames, row_to_dict):
@@ -23,7 +33,7 @@ def _table_to_csv(rows, fieldnames, row_to_dict):
 
 @bp.route("/")
 def index():
-    return render_template("data.html")
+    return render_template("data.html", is_sqlite=_is_sqlite())
 
 
 @bp.route("/export")
@@ -103,6 +113,40 @@ def import_weight_csv():
     except Exception as e:
         db.session.rollback()
         flash(f"Import failed: {e}", "danger")
+    return redirect(url_for("data.index"))
+
+
+@bp.route("/backup")
+def backup():
+    if not _is_sqlite():
+        flash("File-based backup isn't available on Postgres — use CSV export instead, "
+              "or take a backup from your Render Postgres dashboard.", "danger")
+        return redirect(url_for("data.index"))
+    db.session.commit()
+    filename = f"fitness_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+    return send_file(_sqlite_db_path(), as_attachment=True, download_name=filename)
+
+
+@bp.route("/restore", methods=["POST"])
+def restore():
+    if not _is_sqlite():
+        flash("File-based restore isn't available on Postgres. Import weight history via CSV, "
+              "or restore from your Render Postgres dashboard.", "danger")
+        return redirect(url_for("data.index"))
+    file = request.files.get("db_file")
+    if not file or file.filename == "":
+        flash("No backup file selected.", "danger")
+        return redirect(url_for("data.index"))
+    if not file.filename.endswith(".db"):
+        flash("Please upload a .db backup file.", "danger")
+        return redirect(url_for("data.index"))
+    try:
+        db.session.remove()
+        db.engine.dispose()
+        file.save(_sqlite_db_path())
+        flash("Database restored. Restart the app to fully reload.", "success")
+    except Exception as e:
+        flash(f"Restore failed: {e}", "danger")
     return redirect(url_for("data.index"))
 
 
