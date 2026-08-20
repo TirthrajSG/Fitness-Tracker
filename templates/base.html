@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Fitness Tracker{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body class="{{ 'dark-mode' if dark_mode else '' }}">
+<div class="d-flex">
+  <nav id="sidebar" class="d-none d-md-block" style="width:220px;">
+    <div class="brand">🏋 Fitness Tracker</div>
+    {% set nav = [
+      ('dashboard.index', 'Dashboard'),
+      ('weight.index', 'Weight'),
+      ('nutrition.index', 'Nutrition'),
+      ('workout.index', 'Workout'),
+      ('workout.exercises', 'Exercises'),
+      ('workout.progress', 'Progress'),
+      ('calendar.index', 'Calendar'),
+      ('reports.weekly', 'Reports'),
+      ('data.index', 'Data'),
+      ('settings.index', 'Settings'),
+    ] %}
+    {% for endpoint, label in nav %}
+      <a href="{{ url_for(endpoint) }}" class="{{ 'active' if request.endpoint == endpoint or (endpoint=='reports.weekly' and request.endpoint and request.endpoint.startswith('reports.')) else '' }}">{{ label }}</a>
+    {% endfor %}
+  </nav>
+
+  <div class="flex-grow-1">
+    <nav class="navbar navbar-expand-md navbar-light bg-white border-bottom d-md-none px-3">
+      <span class="navbar-brand mb-0 h1">🏋 Fitness Tracker</span>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mobileNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="mobileNav">
+        <ul class="navbar-nav mt-2">
+          {% for endpoint, label in nav %}
+          <li class="nav-item"><a class="nav-link" href="{{ url_for(endpoint) }}">{{ label }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </nav>
+
+    <div class="container-fluid p-3 p-md-4">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/chart.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

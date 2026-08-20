@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<h3 class="mb-3">Settings</h3>
+
+<form method="post" class="card metric-card p-4" style="max-width:700px">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h6 class="text-muted">PERSONAL</h6>
+  <div class="row g-3 mb-3">
+    <div class="col-md-6"><label class="form-label">Nickname</label><input class="form-control" name="name" value="{{ settings.name or '' }}"></div>
+    <div class="col-md-3"><label class="form-label">Age</label><input type="number" class="form-control" name="age" value="{{ settings.age }}" required></div>
+    <div class="col-md-3"><label class="form-label">Sex</label>
+      <select class="form-select" name="sex">
+        <option value="male" {{ 'selected' if settings.sex == 'male' }}>Male</option>
+        <option value="female" {{ 'selected' if settings.sex == 'female' }}>Female</option>
+      </select>
+    </div>
+    <div class="col-md-6"><label class="form-label">Height (cm)</label><input type="number" step="0.1" class="form-control" name="height_cm" value="{{ settings.height_cm }}" required></div>
+    <div class="col-md-6"><label class="form-label">Activity level</label>
+      <select class="form-select" name="activity_level">
+        {% for lvl in ['sedentary','light','moderate','active','very_active'] %}
+        <option value="{{ lvl }}" {{ 'selected' if settings.activity_level == lvl }}>{{ lvl.replace('_',' ')|capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <h6 class="text-muted">GOALS</h6>
+  <div class="row g-3 mb-3">
+    <div class="col-md-4"><label class="form-label">Target weight (kg)</label><input type="number" step="0.1" class="form-control" name="target_weight" value="{{ settings.target_weight_kg }}" required></div>
+    <div class="col-md-4"><label class="form-label">Target date</label><input type="date" class="form-control" name="target_date" value="{{ settings.target_date.isoformat() if settings.target_date else '' }}"></div>
+    <div class="col-md-4"><label class="form-label">Desired rate (kg/week)</label><input type="number" step="0.05" class="form-control" name="desired_weekly_rate" value="{{ settings.desired_weekly_rate_kg }}"></div>
+    <div class="col-md-6"><label class="form-label">Daily calorie target</label><input type="number" class="form-control" name="calorie_target" value="{{ settings.calorie_target }}" required></div>
+    <div class="col-md-6"><label class="form-label">Daily protein target (g)</label><input type="number" class="form-control" name="protein_target" value="{{ settings.protein_target }}" required></div>
+  </div>
+  <div class="text-muted small mb-3">Estimated TDEE: {{ settings.tdee_estimate | fmt1(0) if settings.tdee_estimate else 'not calculated' }} kcal. Your calorie/protein target does not change automatically — update it manually here.</div>
+
+  <h6 class="text-muted">UNITS & APPEARANCE</h6>
+  <div class="row g-3 mb-3">
+    <div class="col-md-4"><label class="form-label">Weight unit</label>
+      <select class="form-select" name="weight_unit">
+        <option value="kg" {{ 'selected' if settings.weight_unit == 'kg' }}>kg</option>
+        <option value="lb" {{ 'selected' if settings.weight_unit == 'lb' }}>lb</option>
+      </select>
+    </div>
+    <div class="col-md-4"><label class="form-label">Height unit</label>
+      <select class="form-select" name="height_unit">
+        <option value="cm" {{ 'selected' if settings.height_unit == 'cm' }}>cm</option>
+        <option value="in" {{ 'selected' if settings.height_unit == 'in' }}>in</option>
+      </select>
+    </div>
+    <div class="col-md-4 d-flex align-items-end">
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" name="dark_mode" id="darkMode" {{ 'checked' if settings.dark_mode }}>
+        <label class="form-check-label" for="darkMode">Dark mode</label>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn btn-primary">Save settings</button>
+</form>
+
+<div class="text-muted small mt-2">
+  Note: weight/height are stored internally in kg/cm; unit selection here currently affects display preference only.
+</div>
+{% endblock %}

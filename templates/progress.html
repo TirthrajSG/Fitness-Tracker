@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Progress{% endblock %}
+{% block content %}
+<h3 class="mb-3">Strength Progress</h3>
+
+<form class="mb-3" method="get">
+  <select class="form-select" style="max-width:300px" name="exercise_id" onchange="this.form.submit()">
+    {% for ex in exercises %}
+      <option value="{{ ex.id }}" {{ 'selected' if ex.id == selected_id }}>{{ ex.name }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+{% if not exercises %}
+<div class="alert alert-light border">Add exercises and log workouts to see progress here.</div>
+{% elif not progression %}
+<div class="alert alert-light border">No sessions logged for this exercise yet.</div>
+{% else %}
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3"><div class="card metric-card p-3"><div class="metric-label">Best weight</div><div class="metric-value">{{ prs.best_weight }} kg</div></div></div>
+  <div class="col-6 col-md-3"><div class="card metric-card p-3"><div class="metric-label">Best est. 1RM</div><div class="metric-value">{{ prs.best_1rm }} kg</div></div></div>
+  <div class="col-6 col-md-3"><div class="card metric-card p-3"><div class="metric-label">Best session volume</div><div class="metric-value">{{ prs.best_volume }} kg</div></div></div>
+  <div class="col-6 col-md-3"><div class="card metric-card p-3"><div class="metric-label">Sessions</div><div class="metric-value">{{ progression | length }}</div></div></div>
+</div>
+
+<div class="card metric-card p-3 mb-3">
+  <canvas id="progressChart" height="90"></canvas>
+</div>
+
+<div class="card metric-card p-3">
+  <strong>PR history</strong>
+  <table class="table table-sm mt-2">
+    <thead><tr><th>Date</th><th>PR type</th><th>Weight</th><th>Reps</th><th>Est. 1RM</th></tr></thead>
+    <tbody>
+    {% for e in prs.events %}
+      <tr>
+        <td>{{ e.date | fmt_date }}</td>
+        <td>{% for f in e.flags %}<span class="pr-badge me-1">{{ f }}</span>{% endfor %}</td>
+        <td>{{ e.best_weight }} kg</td>
+        <td>{{ e.best_reps }}</td>
+        <td>{{ e.estimated_1rm }} kg</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+fetch(`{{ url_for('workout.progress_chart_data') }}?exercise_id={{ selected_id }}`).then(r => r.json()).then(data => {
+  new Chart(document.getElementById('progressChart'), {
+    type: 'line',
+    data: {
+      labels: data.labels,
+      datasets: [
+        { label: 'Estimated 1RM (kg)', data: data.estimated_1rm, borderColor: '#2563eb', tension: 0.25 },
+        { label: 'Best weight (kg)', data: data.best_weight, borderColor: '#94a3b8', borderDash: [4,4], tension: 0.25 },
+      ]
+    },
+    options: { responsive: true }
+  });
+});
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+
+<h3 class="mb-3">Dashboard</h3>
+
+{% if not has_data %}
+<div class="alert alert-info">
+  No weight entries yet. <a href="{{ url_for('weight.index') }}">Log your first weight</a> to activate the dashboard.
+</div>
+{% endif %}
+
+<div class="row g-3">
+  <!-- WEIGHT -->
+  <div class="col-12">
+    <div class="card metric-card p-3">
+      <h6 class="text-muted mb-3">WEIGHT</h6>
+      <div class="row g-3">
+        <div class="col-6 col-md-2">
+          <div class="metric-label">Current</div>
+          <div class="metric-value">{{ current_weight | fmt1 }} kg</div>
+        </div>
+        <div class="col-6 col-md-2">
+          <div class="metric-label">Starting</div>
+          <div class="metric-value">{{ starting | fmt1 }} kg</div>
+        </div>
+        <div class="col-6 col-md-2">
+          <div class="metric-label">Target</div>
+          <div class="metric-value">{{ target | fmt1 }} kg</div>
+        </div>
+        <div class="col-6 col-md-2">
+          <div class="metric-label">Lost so far</div>
+          <div class="metric-value {{ 'text-good' if total_lost and total_lost > 0 else '' }}">{{ total_lost | fmt1 }} kg</div>
+        </div>
+        <div class="col-6 col-md-2">
+          <div class="metric-label">Remaining</div>
+          <div class="metric-value">{{ remaining | fmt1 }} kg</div>
+        </div>
+        <div class="col-6 col-md-2">
+          <div class="metric-label">Goal complete</div>
+          <div class="metric-value">{{ pct_complete | fmt1(0) }}%</div>
+        </div>
+      </div>
+      {% if pct_complete is not none %}
+      <div class="progress mt-2"><div class="progress-bar bg-primary" style="width: {{ pct_complete }}%"></div></div>
+      {% endif %}
+      <div class="row g-3 mt-1">
+        <div class="col-6 col-md-3">
+          <div class="metric-label">7-day average</div>
+          <div class="fw-semibold">{{ avg7 | fmt1 }} kg</div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="metric-label">30-day average</div>
+          <div class="fw-semibold">{{ avg30 | fmt1 }} kg</div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="metric-label">Weekly rate</div>
+          <div class="fw-semibold {{ 'text-good' if week_rate and week_rate < 0 else '' }}">{{ week_rate | fmt1(2) }} kg/wk</div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="metric-label">Est. target date</div>
+          <div class="fw-semibold">{{ est_target_date | fmt_date if est_target_date else 'n/a' }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CALORIES -->
+  <div class="col-md-6">
+    <div class="card metric-card p-3 h-100">
+      <h6 class="text-muted mb-3">CALORIES</h6>
+      <div class="d-flex justify-content-between">
+        <div>
+          <div class="metric-label">Today</div>
+          <div class="metric-value">{{ totals_today.calories | fmt1(0) }}</div>
+        </div>
+        <div>
+          <div class="metric-label">Target</div>
+          <div class="metric-value">{{ settings.calorie_target | fmt1(0) }}</div>
+        </div>
+        <div>
+          <div class="metric-label">Remaining</div>
+          <div class="metric-value {{ 'text-bad' if calories_remaining and calories_remaining < 0 else '' }}">{{ calories_remaining | fmt1(0) }}</div>
+        </div>
+      </div>
+      {% if settings.calorie_target %}
+      <div class="progress mt-3">
+        <div class="progress-bar bg-primary" style="width: {{ [totals_today.calories / settings.calorie_target * 100, 100] | min }}%"></div>
+      </div>
+      {% endif %}
+      <div class="row mt-3">
+        <div class="col-6">
+          <div class="metric-label">7-day avg intake</div>
+          <div class="fw-semibold">{{ nutrition_week.avg_calories | fmt1(0) }}</div>
+        </div>
+        <div class="col-6">
+          <div class="metric-label">Weekly adherence</div>
+          <div class="fw-semibold">{{ calorie_adherence | fmt1(0) if calorie_adherence is not none else '-' }}%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROTEIN -->
+  <div class="col-md-6">
+    <div class="card metric-card p-3 h-100">
+      <h6 class="text-muted mb-3">PROTEIN</h6>
+      <div class="d-flex justify-content-between">
+        <div>
+          <div class="metric-label">Today</div>
+          <div class="metric-value">{{ totals_today.protein | fmt1(0) }} g</div>
+        </div>
+        <div>
+          <div class="metric-label">Target</div>
+          <div class="metric-value">{{ settings.protein_target | fmt1(0) }} g</div>
+        </div>
+        <div>
+          <div class="metric-label">Remaining</div>
+          <div class="metric-value">{{ protein_remaining | fmt1(0) }} g</div>
+        </div>
+      </div>
+      {% if settings.protein_target %}
+      <div class="progress mt-3">
+        <div class="progress-bar bg-success" style="width: {{ [totals_today.protein / settings.protein_target * 100, 100] | min }}%"></div>
+      </div>
+      {% endif %}
+      <div class="row mt-3">
+        <div class="col-6">
+          <div class="metric-label">7-day avg protein</div>
+          <div class="fw-semibold">{{ nutrition_week.avg_protein | fmt1(0) }} g</div>
+        </div>
+        <div class="col-6">
+          <div class="metric-label">Weekly adherence</div>
+          <div class="fw-semibold">{{ protein_adherence | fmt1(0) if protein_adherence is not none else '-' }}%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TRAINING -->
+  <div class="col-12">
+    <div class="card metric-card p-3">
+      <h6 class="text-muted mb-3">TRAINING</h6>
+      <div class="row g-3">
+        <div class="col-6 col-md-2">
+          <div class="metric-label">Today</div>
+          <div class="metric-value">{{ 'Done' if workout_today else '—' }}</div>
+        </div>
+        <div class="col-6 col-md-2">
+          <div class="metric-label">This week</div>
+          <div class="metric-value">{{ workouts_this_week }}</div>
+        </div>
+        <div class="col-6 col-md-2">
+          <div class="metric-label">This month</div>
+          <div class="metric-value">{{ workouts_this_month }}</div>
+        </div>
+        <div class="col-6 col-md-2">
+          <div class="metric-label">Streak</div>
+          <div class="metric-value">{{ streak }} days</div>
+        </div>
+        <div class="col-12 col-md-4">
+          <div class="metric-label">Recent PRs</div>
+          {% if recent_prs %}
+            {% for pr in recent_prs %}
+              <span class="pr-badge me-1">🏆 {{ pr.exercise }} {{ pr.best_weight | fmt1 }}kg×{{ pr.best_reps }}</span>
+            {% endfor %}
+          {% else %}
+            <div class="text-muted small">None in the last 2 weeks</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="alert alert-light border mt-3">
+  <strong>Am I on track?</strong>
+  {% if week_rate is not none %}
+    Your trend is <strong>{{ week_rate | fmt1(2) }} kg/week</strong>
+    ({{ 'losing' if week_rate < 0 else 'gaining' }}),
+    calorie adherence is <strong>{{ calorie_adherence | fmt1(0) if calorie_adherence is not none else 'n/a' }}%</strong>,
+    and you've trained <strong>{{ workouts_this_week }}</strong> time(s) this week.
+  {% else %}
+    Log a few more days of weight to see your trend.
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Exercises{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3>Exercises</h3>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addExerciseModal">+ Add exercise</button>
+</div>
+
+<div class="card metric-card p-3">
+  <div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead><tr><th>Name</th><th>Muscle group</th><th>Equipment</th><th>Notes</th><th></th></tr></thead>
+    <tbody>
+    {% for ex in exercises %}
+      <tr>
+        <td>{{ ex.name }}</td>
+        <td>{{ ex.muscle_group }}</td>
+        <td>{{ ex.equipment }}</td>
+        <td>{{ ex.notes or '' }}</td>
+        <td class="text-end">
+          <a href="{{ url_for('workout.progress', exercise_id=ex.id) }}" class="btn btn-sm btn-outline-primary">Progress</a>
+          <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editEx{{ ex.id }}">Edit</button>
+          <form action="{{ url_for('workout.delete_exercise', exercise_id=ex.id) }}" method="post" class="d-inline" onsubmit="return confirm('Delete this exercise? This also deletes logged sets for it.')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-outline-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+      <div class="modal fade" id="editEx{{ ex.id }}" tabindex="-1">
+        <div class="modal-dialog"><div class="modal-content">
+          <form method="post" action="{{ url_for('workout.edit_exercise', exercise_id=ex.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="modal-header"><h5 class="modal-title">Edit exercise</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+              <div class="mb-2"><label class="form-label">Name</label><input class="form-control" name="name" value="{{ ex.name }}" required></div>
+              <div class="mb-2"><label class="form-label">Muscle group</label><input class="form-control" name="muscle_group" value="{{ ex.muscle_group or '' }}"></div>
+              <div class="mb-2"><label class="form-label">Equipment</label><input class="form-control" name="equipment" value="{{ ex.equipment or '' }}"></div>
+              <div class="mb-2"><label class="form-label">Notes</label><input class="form-control" name="notes" value="{{ ex.notes or '' }}"></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-primary">Save</button></div>
+          </form>
+        </div></div>
+      </div>
+    {% else %}
+      <tr><td colspan="5" class="text-muted text-center py-4">No exercises yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<div class="modal fade" id="addExerciseModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="post" action="{{ url_for('workout.add_exercise') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-header"><h5 class="modal-title">Add exercise</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-2"><label class="form-label">Name</label><input class="form-control" name="name" required></div>
+        <div class="mb-2"><label class="form-label">Muscle group</label><input class="form-control" name="muscle_group" placeholder="e.g. chest, back, legs"></div>
+        <div class="mb-2"><label class="form-label">Equipment</label><input class="form-control" name="equipment" placeholder="e.g. barbell, dumbbell"></div>
+        <div class="mb-2"><label class="form-label">Notes</label><input class="form-control" name="notes"></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-primary">Save</button></div>
+    </form>
+  </div></div>
+</div>
+{% endblock %}

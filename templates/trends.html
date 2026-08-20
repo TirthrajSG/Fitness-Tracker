@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Trend Analysis{% endblock %}
+{% block content %}
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item"><a class="nav-link" href="{{ url_for('reports.weekly') }}">Weekly Summary</a></li>
+  <li class="nav-item"><a class="nav-link active" href="{{ url_for('reports.trends') }}">Trend Analysis</a></li>
+  <li class="nav-item"><a class="nav-link" href="{{ url_for('reports.strength_vs_weight') }}">Strength vs Weight</a></li>
+  <li class="nav-item"><a class="nav-link" href="{{ url_for('reports.calorie_vs_weight') }}">Calories vs Weight</a></li>
+</ul>
+
+{% if not has_data %}
+<div class="alert alert-light border">Not enough weight data yet for trend analysis.</div>
+{% else %}
+<div class="alert alert-primary">{{ summary }}</div>
+
+<div class="row g-3">
+  <div class="col-6 col-md-3"><div class="card metric-card p-3"><div class="metric-label">Recent range</div><div class="metric-value" style="font-size:1.1rem">{{ range_low }}–{{ range_high }} kg</div></div></div>
+  <div class="col-6 col-md-3"><div class="card metric-card p-3"><div class="metric-label">Trend (linear fit)</div><div class="metric-value">{{ week_rate | fmt1(2) }} kg/wk</div></div></div>
+  <div class="col-6 col-md-3"><div class="card metric-card p-3"><div class="metric-label">Volatility (σ, 14d)</div><div class="metric-value">{{ volatility | fmt1(2) }} kg</div></div></div>
+  <div class="col-6 col-md-3"><div class="card metric-card p-3"><div class="metric-label">Fit quality (r)</div><div class="metric-value">{{ r_value | fmt1(2) }}</div></div></div>
+</div>
+
+{% if plateau %}
+<div class="alert alert-warning mt-3">
+  <strong>Plateau detected.</strong> Your weight trend has been essentially flat (&lt;0.1 kg/week) for at least 3 weeks. This is a sustained pattern, not a normal daily fluctuation — consider reviewing calorie intake or activity level.
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

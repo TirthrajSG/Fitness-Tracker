@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Calories vs Weight{% endblock %}
+{% block content %}
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item"><a class="nav-link" href="{{ url_for('reports.weekly') }}">Weekly Summary</a></li>
+  <li class="nav-item"><a class="nav-link" href="{{ url_for('reports.trends') }}">Trend Analysis</a></li>
+  <li class="nav-item"><a class="nav-link" href="{{ url_for('reports.strength_vs_weight') }}">Strength vs Weight</a></li>
+  <li class="nav-item"><a class="nav-link active" href="{{ url_for('reports.calorie_vs_weight') }}">Calories vs Weight</a></li>
+</ul>
+
+<div class="d-flex justify-content-end mb-2">
+  <select id="daysSelect" class="form-select" style="width:auto">
+    <option value="7">7 days</option>
+    <option value="14">14 days</option>
+    <option value="30" selected>30 days</option>
+    <option value="60">60 days</option>
+    <option value="90">90 days</option>
+  </select>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-4"><div class="card metric-card p-3"><div class="metric-label">Avg calorie intake</div><div id="avgCal" class="metric-value">-</div></div></div>
+  <div class="col-4"><div class="card metric-card p-3"><div class="metric-label">Weight trend</div><div id="rate" class="metric-value">-</div></div></div>
+  <div class="col-4"><div class="card metric-card p-3"><div class="metric-label">Observed deficit (est.)</div><div id="deficit" class="metric-value">-</div></div></div>
+</div>
+<div class="text-muted small mb-3">Observed deficit is derived from the weight trend using ~7700 kcal/kg of fat. This is a rough estimate, not medical advice.</div>
+
+<div class="card metric-card p-3">
+  <canvas id="cwChart" height="90"></canvas>
+</div>
+
+<script>
+function load(days) {
+  fetch(`{{ url_for('reports.calorie_vs_weight_data') }}?days=${days}`).then(r => r.json()).then(data => {
+    document.getElementById('avgCal').textContent = data.avg_calories ? data.avg_calories + ' kcal' : '-';
+    document.getElementById('rate').textContent = data.week_rate !== null ? data.week_rate + ' kg/wk' : '-';
+    document.getElementById('deficit').textContent = data.observed_deficit !== null ? data.observed_deficit + ' kcal/day' : '-';
+
+    const ctx = document.getElementById('cwChart');
+    if (window._cwChart) window._cwChart.destroy();
+    window._cwChart = new Chart(ctx, {
+      data: {
+        labels: data.labels,
+        datasets: [
+          { type: 'bar', label: 'Calories', data: data.calories, backgroundColor: '#93c5fd', yAxisID: 'y' },
+          { type: 'line', label: 'Weight (kg)', data: data.weight, borderColor: '#dc2626', yAxisID: 'y1', tension: 0.25 },
+        ]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: { position: 'left', title: { display: true, text: 'kcal' } },
+          y1: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'kg' } },
+        }
+      }
+    });
+  });
+}
+document.getElementById('daysSelect').addEventListener('change', e => load(e.target.value));
+load(30);
+</script>
+{% endblock %}

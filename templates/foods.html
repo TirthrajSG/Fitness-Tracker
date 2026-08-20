@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Food Database{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3>Food Database</h3>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addFoodModal">+ Add food</button>
+</div>
+
+<form class="row g-2 mb-3" method="get">
+  <div class="col-auto"><input type="text" class="form-control" name="q" placeholder="Search foods..." value="{{ search }}"></div>
+  <div class="col-auto"><button class="btn btn-outline-secondary">Search</button></div>
+</form>
+
+<div class="card metric-card p-3">
+  <div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead><tr><th>Name</th><th>Serving</th><th>Cal</th><th>P</th><th>C</th><th>F</th><th>Fiber</th><th></th></tr></thead>
+    <tbody>
+    {% for f in foods %}
+      <tr>
+        <td>{{ f.name }}</td>
+        <td>{{ f.serving_size }} {{ f.serving_unit }}</td>
+        <td>{{ f.calories | fmt1(0) }}</td>
+        <td>{{ f.protein | fmt1(0) }}</td>
+        <td>{{ f.carbs | fmt1(0) }}</td>
+        <td>{{ f.fat | fmt1(0) }}</td>
+        <td>{{ f.fiber | fmt1(0) }}</td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editFood{{ f.id }}">Edit</button>
+          <form action="{{ url_for('nutrition.delete_food', food_id=f.id) }}" method="post" class="d-inline" onsubmit="return confirm('Delete this food?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-outline-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+      <div class="modal fade" id="editFood{{ f.id }}" tabindex="-1">
+        <div class="modal-dialog"><div class="modal-content">
+          <form method="post" action="{{ url_for('nutrition.edit_food', food_id=f.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="modal-header"><h5 class="modal-title">Edit food</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+              <div class="mb-2"><label class="form-label">Name</label><input class="form-control" name="name" value="{{ f.name }}" required></div>
+              <div class="row g-2">
+                <div class="col-6"><label class="form-label">Serving size</label><input type="number" step="0.1" class="form-control" name="serving_size" value="{{ f.serving_size }}"></div>
+                <div class="col-6"><label class="form-label">Unit</label><input class="form-control" name="serving_unit" value="{{ f.serving_unit }}"></div>
+                <div class="col-6"><label class="form-label">Calories</label><input type="number" step="0.1" class="form-control" name="calories" value="{{ f.calories }}" required></div>
+                <div class="col-6"><label class="form-label">Protein</label><input type="number" step="0.1" class="form-control" name="protein" value="{{ f.protein }}"></div>
+                <div class="col-6"><label class="form-label">Carbs</label><input type="number" step="0.1" class="form-control" name="carbs" value="{{ f.carbs }}"></div>
+                <div class="col-6"><label class="form-label">Fat</label><input type="number" step="0.1" class="form-control" name="fat" value="{{ f.fat }}"></div>
+                <div class="col-6"><label class="form-label">Fiber</label><input type="number" step="0.1" class="form-control" name="fiber" value="{{ f.fiber }}"></div>
+              </div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-primary">Save</button></div>
+          </form>
+        </div></div>
+      </div>
+    {% else %}
+      <tr><td colspan="8" class="text-muted text-center py-4">No foods yet. Add some to reuse them in your logs.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<div class="modal fade" id="addFoodModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="post" action="{{ url_for('nutrition.add_food') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-header"><h5 class="modal-title">Add food</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-2"><label class="form-label">Name</label><input class="form-control" name="name" required placeholder="e.g. Chicken breast 100 g"></div>
+        <div class="row g-2">
+          <div class="col-6"><label class="form-label">Serving size</label><input type="number" step="0.1" class="form-control" name="serving_size" value="1"></div>
+          <div class="col-6"><label class="form-label">Unit</label><input class="form-control" name="serving_unit" value="serving"></div>
+          <div class="col-6"><label class="form-label">Calories</label><input type="number" step="0.1" class="form-control" name="calories" required></div>
+          <div class="col-6"><label class="form-label">Protein (g)</label><input type="number" step="0.1" class="form-control" name="protein"></div>
+          <div class="col-6"><label class="form-label">Carbs (g)</label><input type="number" step="0.1" class="form-control" name="carbs"></div>
+          <div class="col-6"><label class="form-label">Fat (g)</label><input type="number" step="0.1" class="form-control" name="fat"></div>
+          <div class="col-6"><label class="form-label">Fiber (g)</label><input type="number" step="0.1" class="form-control" name="fiber"></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-primary">Save</button></div>
+    </form>
+  </div></div>
+</div>
+{% endblock %}

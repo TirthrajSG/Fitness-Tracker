@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}New Workout{% endblock %}
+{% block content %}
+<h3 class="mb-3">New Workout</h3>
+
+<form method="post" class="card metric-card p-3" style="max-width:600px">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="mb-2"><label class="form-label">Date</label><input type="date" class="form-control" name="date" value="{{ today }}" required></div>
+  <div class="mb-2"><label class="form-label">Name</label><input type="text" class="form-control" name="name" placeholder="e.g. Push Day" value="Workout"></div>
+  <div class="mb-2"><label class="form-label">Duration (minutes, optional)</label><input type="number" class="form-control" name="duration"></div>
+  <div class="mb-2"><label class="form-label">Notes (optional)</label><input type="text" class="form-control" name="notes"></div>
+
+  {% if templates %}
+  <div class="mb-2">
+    <label class="form-label">Start from template (optional)</label>
+    <select class="form-select" name="template_id">
+      <option value="">— blank workout —</option>
+      {% for t in templates %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+    </select>
+  </div>
+  {% endif %}
+
+  <button class="btn btn-primary mt-2">Create workout</button>
+</form>
+{% endblock %}

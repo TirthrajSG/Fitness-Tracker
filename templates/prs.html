@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Personal Records{% endblock %}
+{% block content %}
+<h3 class="mb-3">Personal Records</h3>
+
+<div class="row g-3">
+  {% for item in pr_summary %}
+  <div class="col-md-4">
+    <div class="card metric-card p-3">
+      <strong>{{ item.exercise.name }}</strong>
+      <div class="row mt-2">
+        <div class="col-6"><div class="metric-label">Best weight</div><div class="fw-semibold">{{ item.prs.best_weight }} kg</div></div>
+        <div class="col-6"><div class="metric-label">Best 1RM</div><div class="fw-semibold">{{ item.prs.best_1rm }} kg</div></div>
+        <div class="col-6"><div class="metric-label">Best volume</div><div class="fw-semibold">{{ item.prs.best_volume }} kg</div></div>
+        <div class="col-6"><div class="metric-label">Last PR</div><div class="fw-semibold">{{ item.prs.events[0].date | fmt_date if item.prs.events else '-' }}</div></div>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="col-12"><div class="alert alert-light border">No PRs yet — log some workouts to start tracking records.</div></div>
+  {% endfor %}
+</div>
+{% endblock %}

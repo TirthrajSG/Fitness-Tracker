@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Calendar{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('calendar.index', year=prev_year, month=prev_month) }}">&laquo;</a>
+  <h4 class="mb-0">{{ month_name }} {{ year }}</h4>
+  <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('calendar.index', year=next_year, month=next_month) }}">&raquo;</a>
+</div>
+
+<div class="text-muted small mb-2">⚖️ weight logged &nbsp; 🍽️ nutrition logged &nbsp; 🏋️ workout &nbsp; 🎯 protein target met</div>
+
+<table class="table table-bordered">
+  <thead><tr>{% for d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}<th>{{ d }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for week in weeks %}
+    <tr>
+    {% for day in week %}
+      <td class="calendar-cell {{ 'bg-light' if day == 0 }}">
+        {% if day != 0 %}
+          {% set d = year and month and day and (today.replace(year=year, month=month, day=day)) %}
+          <div class="fw-semibold {{ 'text-primary' if d == today }}">{{ day }}</div>
+          {% if d in weight_days %}<div>⚖️</div>{% endif %}
+          {% if d in nutrition_days %}<div>🍽️{% if d in protein_met_days %} 🎯{% endif %}</div>{% endif %}
+          {% if d in workout_days %}<div>🏋️</div>{% endif %}
+        {% endif %}
+      </td>
+    {% endfor %}
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

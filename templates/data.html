@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Data Management{% endblock %}
+{% block content %}
+<h3 class="mb-3">Data Management</h3>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card metric-card p-3 h-100">
+      <strong>Export data</strong>
+      <p class="text-muted small mt-1">Download all tracked data (weight, measurements, foods, food logs, workout sets) as CSV files in a zip.</p>
+      <a href="{{ url_for('data.export_all') }}" class="btn btn-outline-primary">Export to CSV (.zip)</a>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card metric-card p-3 h-100">
+      <strong>Import weight history</strong>
+      <p class="text-muted small mt-1">CSV columns: date, time (optional), weight_kg, note (optional). Date format YYYY-MM-DD.</p>
+      <form method="post" action="{{ url_for('data.import_weight_csv') }}" enctype="multipart/form-data" class="d-flex gap-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="file" name="csv_file" accept=".csv" class="form-control" required>
+        <button class="btn btn-outline-primary">Import</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="card metric-card p-3 h-100">
+      <strong>Backup / restore</strong>
+      <p class="text-muted small mt-1">
+        This app runs on Postgres, so there's no local database file to download or restore. Use the
+        CSV export above as your working backup, and rely on your Render Postgres dashboard for
+        full-fidelity snapshots and point-in-time restore.
+      </p>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="card metric-card p-3 border border-danger">
+      <strong class="text-danger">Clear all data</strong>
+      <p class="text-muted small mt-1">Permanently deletes all weight entries, measurements, foods, food logs, exercises, workouts, and templates. Your settings are kept. This cannot be undone.</p>
+      <form method="post" action="{{ url_for('data.clear_all') }}" class="d-flex gap-2" onsubmit="return confirm('This permanently deletes all tracked data. Are you absolutely sure?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="text" name="confirm" class="form-control" placeholder='Type DELETE to confirm' style="max-width:250px" required>
+        <button class="btn btn-danger">Clear all data</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{{ workout.name }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h3 class="mb-0">{{ workout.name }}</h3>
+    <span class="text-muted">{{ workout.date | fmt_date }}{% if workout.duration_minutes %} · {{ workout.duration_minutes }} min{% endif %}</span>
+  </div>
+  <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#addExModal">+ Add exercise</button>
+</div>
+
+{% for we in workout.exercises %}
+<div class="card metric-card p-3 mb-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <strong>{{ we.exercise.name }}</strong>
+    <form method="post" action="{{ url_for('workout.remove_exercise_from_workout', we_id=we.id) }}" onsubmit="return confirm('Remove this exercise from the workout?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-sm btn-outline-danger">Remove</button>
+    </form>
+  </div>
+
+  {% if previous_sets.get(we.id) %}
+  <div class="text-muted small mb-2">
+    Previous: {% for s in previous_sets[we.id] %}{{ s.weight_kg }}kg×{{ s.reps }}{{ ', ' if not loop.last }}{% endfor %}
+  </div>
+  {% endif %}
+
+  <table class="table table-sm mb-2">
+    <thead><tr><th>#</th><th>Weight (kg)</th><th>Reps</th><th>RPE</th><th>RIR</th><th>Volume</th><th>Est. 1RM</th><th></th></tr></thead>
+    <tbody>
+    {% for s in we.sets %}
+      <tr>
+        <td>{{ s.set_number }}</td>
+        <td>{{ s.weight_kg }}</td>
+        <td>{{ s.reps }}</td>
+        <td>{{ s.rpe or '-' }}</td>
+        <td>{{ s.rir or '-' }}</td>
+        <td>{{ s.volume }}</td>
+        <td>{{ s.estimated_1rm }}</td>
+        <td>
+          <form method="post" action="{{ url_for('workout.delete_set', set_id=s.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-outline-danger">×</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <form method="post" action="{{ url_for('workout.add_set', we_id=we.id) }}" class="row g-2 align-items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="col-auto"><label class="form-label small mb-0">Weight</label><input type="number" step="0.5" class="form-control form-control-sm" name="weight" style="width:90px" required></div>
+    <div class="col-auto"><label class="form-label small mb-0">Reps</label><input type="number" class="form-control form-control-sm" name="reps" style="width:70px" required></div>
+    <div class="col-auto"><label class="form-label small mb-0">RPE</label><input type="number" step="0.5" class="form-control form-control-sm" name="rpe" style="width:70px"></div>
+    <div class="col-auto"><label class="form-label small mb-0">RIR</label><input type="number" step="0.5" class="form-control form-control-sm" name="rir" style="width:70px"></div>
+    <div class="col-auto"><button class="btn btn-sm btn-primary">Add set</button></div>
+  </form>
+</div>
+{% else %}
+<div class="alert alert-light border">No exercises added yet. Use "Add exercise" to get started.</div>
+{% endfor %}
+
+<div class="modal fade" id="addExModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="post" action="{{ url_for('workout.add_exercise_to_workout', workout_id=workout.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-header"><h5 class="modal-title">Add exercise</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <select class="form-select" name="exercise_id" required>
+          {% for ex in exercises %}<option value="{{ ex.id }}">{{ ex.name }}</option>{% endfor %}
+        </select>
+        {% if not exercises %}<div class="text-muted small mt-2">No exercises defined yet — add some on the Exercises page first.</div>{% endif %}
+      </div>
+      <div class="modal-footer"><button class="btn btn-primary">Add</button></div>
+    </form>
+  </div></div>
+</div>
+{% endblock %}

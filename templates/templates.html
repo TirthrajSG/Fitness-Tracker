@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Workout Templates{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3>Workout Templates</h3>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTemplateModal">+ New template</button>
+</div>
+
+<div class="row g-3">
+  {% for t in templates %}
+  <div class="col-md-4">
+    <div class="card metric-card p-3 h-100">
+      <div class="d-flex justify-content-between">
+        <strong>{{ t.name }}</strong>
+        <form method="post" action="{{ url_for('workout.delete_template', template_id=t.id) }}" onsubmit="return confirm('Delete this template?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-sm btn-outline-danger">Delete</button>
+        </form>
+      </div>
+      <ul class="mt-2 mb-0">
+        {% for te in t.exercises %}<li>{{ te.exercise.name }}</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% else %}
+  <div class="col-12"><div class="alert alert-light border">No templates yet.</div></div>
+  {% endfor %}
+</div>
+
+<div class="modal fade" id="addTemplateModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="post" action="{{ url_for('workout.add_template') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-header"><h5 class="modal-title">New template</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-2"><label class="form-label">Name</label><input class="form-control" name="name" placeholder="e.g. Push" required></div>
+        <label class="form-label">Exercises (in order)</label>
+        <select class="form-select" name="exercise_ids" multiple size="8">
+          {% for ex in exercises %}<option value="{{ ex.id }}">{{ ex.name }}</option>{% endfor %}
+        </select>
+        <div class="text-muted small mt-1">Ctrl/Cmd-click to select multiple, in the order you want them.</div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-primary">Save</button></div>
+    </form>
+  </div></div>
+</div>
+{% endblock %}

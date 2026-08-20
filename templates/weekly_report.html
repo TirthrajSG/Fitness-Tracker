@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Weekly Report{% endblock %}
+{% block content %}
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item"><a class="nav-link active" href="{{ url_for('reports.weekly') }}">Weekly Summary</a></li>
+  <li class="nav-item"><a class="nav-link" href="{{ url_for('reports.trends') }}">Trend Analysis</a></li>
+  <li class="nav-item"><a class="nav-link" href="{{ url_for('reports.strength_vs_weight') }}">Strength vs Weight</a></li>
+  <li class="nav-item"><a class="nav-link" href="{{ url_for('reports.calorie_vs_weight') }}">Calories vs Weight</a></li>
+</ul>
+
+<h4>Week of {{ week_start | fmt_date }} – {{ week_end | fmt_date }}</h4>
+
+<div class="row g-3 mt-1">
+  <div class="col-md-6">
+    <div class="card metric-card p-3">
+      <strong>Weight</strong>
+      <div class="row mt-2">
+        <div class="col-4"><div class="metric-label">Start</div><div class="fw-semibold">{{ start_weight | fmt1 }} kg</div></div>
+        <div class="col-4"><div class="metric-label">End</div><div class="fw-semibold">{{ end_weight | fmt1 }} kg</div></div>
+        <div class="col-4"><div class="metric-label">Change</div><div class="fw-semibold {{ 'text-good' if weight_change and weight_change < 0 }}">{{ weight_change | fmt1 }} kg</div></div>
+      </div>
+      <div class="metric-label mt-2">Average</div><div class="fw-semibold">{{ avg_weight | fmt1 }} kg</div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card metric-card p-3">
+      <strong>Nutrition</strong>
+      <div class="row mt-2">
+        <div class="col-6"><div class="metric-label">Avg calories</div><div class="fw-semibold">{{ nutrition.avg_calories | fmt1(0) if nutrition.avg_calories is not none else '-' }} / {{ settings.calorie_target | fmt1(0) }}</div></div>
+        <div class="col-6"><div class="metric-label">Avg protein</div><div class="fw-semibold">{{ nutrition.avg_protein | fmt1(0) if nutrition.avg_protein is not none else '-' }} / {{ settings.protein_target | fmt1(0) }}</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card metric-card p-3">
+      <strong>Training</strong>
+      <div class="row mt-2">
+        <div class="col-6"><div class="metric-label">Workouts</div><div class="fw-semibold">{{ workouts | length }}</div></div>
+        <div class="col-6"><div class="metric-label">Total volume</div><div class="fw-semibold">{{ total_volume | round(0) }} kg</div></div>
+      </div>
+      {% if strength_changes %}
+      <div class="mt-2">
+        {% for c in strength_changes %}
+          <div>{{ c.exercise }}: <span class="{{ 'text-good' if c.change > 0 else 'text-bad' }}">{{ '+' if c.change > 0 }}{{ c.change }} kg est. 1RM</span></div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card metric-card p-3">
+      <strong>Goal status</strong>
+      <div class="metric-value mt-2 {{ 'text-good' if status == 'ahead' else 'text-warn' if status == 'behind' else '' }}">
+        {{ {'ahead': 'AHEAD OF SCHEDULE', 'on_track': 'ON TRACK', 'behind': 'BEHIND SCHEDULE', 'insufficient_data': 'NOT ENOUGH DATA'}[status] }}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
