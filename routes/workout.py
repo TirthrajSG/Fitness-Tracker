@@ -1,5 +1,6 @@
 from datetime import datetime, date
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask_login import login_required, current_user
 
 from models import (db, Exercise, Workout, WorkoutExercise, SetEntry,
                      WorkoutTemplate, TemplateExercise)
@@ -11,15 +12,18 @@ bp = Blueprint("workout", __name__, url_prefix="/workout")
 # ---------- Exercises ----------
 
 @bp.route("/exercises")
+@login_required
 def exercises():
-    all_exercises = Exercise.query.order_by(Exercise.name).all()
+    all_exercises = Exercise.query.filter_by(user_id=current_user.id).order_by(Exercise.name).all()
     return render_template("exercises.html", exercises=all_exercises)
 
 
 @bp.route("/exercises/add", methods=["POST"])
+@login_required
 def add_exercise():
     try:
         ex = Exercise(
+            user_id=current_user.id,
             name=request.form["name"].strip(),
             muscle_group=request.form.get("muscle_group", "").strip(),
             equipment=request.form.get("equipment", "").strip(),
@@ -34,8 +38,9 @@ def add_exercise():
 
 
 @bp.route("/exercises/edit/<int:exercise_id>", methods=["POST"])
+@login_required
 def edit_exercise(exercise_id):
-    ex = Exercise.query.get_or_404(exercise_id)
+    ex = Exercise.query.filter_by(id=exercise_id, user_id=current_user.id).first_or_404()
     ex.name = request.form["name"].strip()
     ex.muscle_group = request.form.get("muscle_group", "").strip()
     ex.equipment = request.form.get("equipment", "").strip()
@@ -46,8 +51,9 @@ def edit_exercise(exercise_id):
 
 
 @bp.route("/exercises/delete/<int:exercise_id>", methods=["POST"])
+@login_required
 def delete_exercise(exercise_id):
-    ex = Exercise.query.get_or_404(exercise_id)
+    ex = Exercise.query.filter_by(id=exercise_id, user_id=current_user.id).first_or_404()
     db.session.delete(ex)
     db.session.commit()
     flash("Exercise deleted.", "info")
@@ -57,16 +63,19 @@ def delete_exercise(exercise_id):
 # ---------- Workouts ----------
 
 @bp.route("/")
+@login_required
 def index():
-    workouts = Workout.query.order_by(Workout.date.desc()).limit(50).all()
+    workouts = Workout.query.filter_by(user_id=current_user.id).order_by(Workout.date.desc()).limit(50).all()
     return render_template("workouts.html", workouts=workouts)
 
 
 @bp.route("/new", methods=["GET", "POST"])
+@login_required
 def new_workout():
     if request.method == "POST":
         try:
             w = Workout(
+                user_id=current_user.id,
                 date=datetime.strptime(request.form["date"], "%Y-%m-%d").date(),
                 name=request.form.get("name", "Workout").strip() or "Workout",
                 duration_minutes=int(request.form["duration"]) if request.form.get("duration") else None,
@@ -77,7 +86,8 @@ def new_workout():
 
             template_id = request.form.get("template_id")
             if template_id:
-                template = WorkoutTemplate.query.get(int(template_id))
+                template = WorkoutTemplate.query.filter_by(
+                    id=int(template_id), user_id=current_user.id).first()
                 if template:
                     for i, te in enumerate(template.exercises):
                         db.session.add(WorkoutExercise(workout_id=w.id, exercise_id=te.exercise_id, order=i))
@@ -87,22 +97,24 @@ def new_workout():
         except (ValueError, KeyError) as e:
             flash(f"Could not create workout: {e}", "danger")
 
-    exercises_list = Exercise.query.order_by(Exercise.name).all()
-    templates = WorkoutTemplate.query.order_by(WorkoutTemplate.name).all()
+    exercises_list = Exercise.query.filter_by(user_id=current_user.id).order_by(Exercise.name).all()
+    templates = WorkoutTemplate.query.filter_by(user_id=current_user.id).order_by(WorkoutTemplate.name).all()
     return render_template("new_workout.html", exercises=exercises_list, templates=templates,
                             today=date.today().isoformat())
 
 
 @bp.route("/<int:workout_id>")
+@login_required
 def detail(workout_id):
-    w = Workout.query.get_or_404(workout_id)
-    exercises_list = Exercise.query.order_by(Exercise.name).all()
+    w = Workout.query.filter_by(id=workout_id, user_id=current_user.id).first_or_404()
+    exercises_list = Exercise.query.filter_by(user_id=current_user.id).order_by(Exercise.name).all()
 
     previous_sets = {}
     for we in w.exercises:
         prior = (
             WorkoutExercise.query.join(Workout)
-            .filter(WorkoutExercise.exercise_id == we.exercise_id, Workout.date < w.date)
+            .filter(WorkoutExercise.exercise_id == we.exercise_id, Workout.date < w.date,
+                    Workout.user_id == current_user.id)
             .order_by(Workout.date.desc()).first()
         )
         if prior:
@@ -113,18 +125,31 @@ def detail(workout_id):
 
 
 @bp.route("/<int:workout_id>/delete", methods=["POST"])
+@login_required
 def delete_workout(workout_id):
-    w = Workout.query.get_or_404(workout_id)
+    w = Workout.query.filter_by(id=workout_id, user_id=current_user.id).first_or_404()
     db.session.delete(w)
     db.session.commit()
     flash("Workout deleted.", "info")
     return redirect(url_for("workout.index"))
 
 
+def _owned_workout_exercise(we_id):
+    """Fetch a WorkoutExercise only if its parent workout belongs to current_user."""
+    return (
+        WorkoutExercise.query.join(Workout)
+        .filter(WorkoutExercise.id == we_id, Workout.user_id == current_user.id)
+        .first_or_404()
+    )
+
+
 @bp.route("/<int:workout_id>/add-exercise", methods=["POST"])
+@login_required
 def add_exercise_to_workout(workout_id):
-    w = Workout.query.get_or_404(workout_id)
+    w = Workout.query.filter_by(id=workout_id, user_id=current_user.id).first_or_404()
     exercise_id = int(request.form["exercise_id"])
+    # Confirm the exercise itself belongs to this user too.
+    Exercise.query.filter_by(id=exercise_id, user_id=current_user.id).first_or_404()
     order = len(w.exercises)
     we = WorkoutExercise(workout_id=w.id, exercise_id=exercise_id, order=order)
     db.session.add(we)
@@ -133,8 +158,9 @@ def add_exercise_to_workout(workout_id):
 
 
 @bp.route("/exercise-entry/<int:we_id>/remove", methods=["POST"])
+@login_required
 def remove_exercise_from_workout(we_id):
-    we = WorkoutExercise.query.get_or_404(we_id)
+    we = _owned_workout_exercise(we_id)
     workout_id = we.workout_id
     db.session.delete(we)
     db.session.commit()
@@ -142,8 +168,9 @@ def remove_exercise_from_workout(we_id):
 
 
 @bp.route("/exercise-entry/<int:we_id>/add-set", methods=["POST"])
+@login_required
 def add_set(we_id):
-    we = WorkoutExercise.query.get_or_404(we_id)
+    we = _owned_workout_exercise(we_id)
     try:
         weight = float(request.form["weight"])
         reps = int(request.form["reps"])
@@ -163,8 +190,13 @@ def add_set(we_id):
 
 
 @bp.route("/set/<int:set_id>/delete", methods=["POST"])
+@login_required
 def delete_set(set_id):
-    s = SetEntry.query.get_or_404(set_id)
+    s = (
+        SetEntry.query.join(WorkoutExercise).join(Workout)
+        .filter(SetEntry.id == set_id, Workout.user_id == current_user.id)
+        .first_or_404()
+    )
     workout_id = s.workout_exercise.workout_id
     db.session.delete(s)
     db.session.commit()
@@ -174,32 +206,37 @@ def delete_set(set_id):
 # ---------- Templates ----------
 
 @bp.route("/templates")
+@login_required
 def templates():
-    all_templates = WorkoutTemplate.query.order_by(WorkoutTemplate.name).all()
-    exercises_list = Exercise.query.order_by(Exercise.name).all()
+    all_templates = WorkoutTemplate.query.filter_by(user_id=current_user.id).order_by(WorkoutTemplate.name).all()
+    exercises_list = Exercise.query.filter_by(user_id=current_user.id).order_by(Exercise.name).all()
     return render_template("templates.html", templates=all_templates, exercises=exercises_list)
 
 
 @bp.route("/templates/add", methods=["POST"])
+@login_required
 def add_template():
     name = request.form["name"].strip()
     if not name:
         flash("Template name is required.", "danger")
         return redirect(url_for("workout.templates"))
-    t = WorkoutTemplate(name=name)
+    t = WorkoutTemplate(user_id=current_user.id, name=name)
     db.session.add(t)
     db.session.commit()
     exercise_ids = request.form.getlist("exercise_ids")
     for i, eid in enumerate(exercise_ids):
-        db.session.add(TemplateExercise(template_id=t.id, exercise_id=int(eid), order=i))
+        # Only attach exercises this user actually owns.
+        if Exercise.query.filter_by(id=int(eid), user_id=current_user.id).first():
+            db.session.add(TemplateExercise(template_id=t.id, exercise_id=int(eid), order=i))
     db.session.commit()
     flash("Template created.", "success")
     return redirect(url_for("workout.templates"))
 
 
 @bp.route("/templates/<int:template_id>/delete", methods=["POST"])
+@login_required
 def delete_template(template_id):
-    t = WorkoutTemplate.query.get_or_404(template_id)
+    t = WorkoutTemplate.query.filter_by(id=template_id, user_id=current_user.id).first_or_404()
     db.session.delete(t)
     db.session.commit()
     flash("Template deleted.", "info")
@@ -209,16 +246,20 @@ def delete_template(template_id):
 # ---------- Progress / PRs ----------
 
 @bp.route("/progress")
+@login_required
 def progress():
-    exercises_list = Exercise.query.order_by(Exercise.name).all()
+    uid = current_user.id
+    exercises_list = Exercise.query.filter_by(user_id=uid).order_by(Exercise.name).all()
     selected_id = request.args.get("exercise_id", type=int)
     if not selected_id and exercises_list:
         selected_id = exercises_list[0].id
+    elif selected_id and not any(e.id == selected_id for e in exercises_list):
+        selected_id = exercises_list[0].id if exercises_list else None
 
     progression = []
     prs = None
     if selected_id:
-        rows = wka.exercise_history(db, Exercise, WorkoutExercise, Workout, SetEntry, selected_id)
+        rows = wka.exercise_history(db, Exercise, WorkoutExercise, Workout, SetEntry, selected_id, uid)
         progression = wka.progression_series(rows)
         prs = wka.detect_prs(progression)
 
@@ -227,9 +268,10 @@ def progress():
 
 
 @bp.route("/progress/chart-data")
+@login_required
 def progress_chart_data():
     exercise_id = request.args.get("exercise_id", type=int)
-    rows = wka.exercise_history(db, Exercise, WorkoutExercise, Workout, SetEntry, exercise_id)
+    rows = wka.exercise_history(db, Exercise, WorkoutExercise, Workout, SetEntry, exercise_id, current_user.id)
     progression = wka.progression_series(rows)
     return jsonify({
         "labels": [s["date"].isoformat() for s in progression],
@@ -240,11 +282,13 @@ def progress_chart_data():
 
 
 @bp.route("/prs")
+@login_required
 def all_prs():
-    exercises_list = Exercise.query.order_by(Exercise.name).all()
+    uid = current_user.id
+    exercises_list = Exercise.query.filter_by(user_id=uid).order_by(Exercise.name).all()
     pr_summary = []
     for ex in exercises_list:
-        rows = wka.exercise_history(db, Exercise, WorkoutExercise, Workout, SetEntry, ex.id)
+        rows = wka.exercise_history(db, Exercise, WorkoutExercise, Workout, SetEntry, ex.id, uid)
         progression = wka.progression_series(rows)
         if not progression:
             continue

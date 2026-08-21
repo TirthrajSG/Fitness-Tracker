@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 from flask import Blueprint, render_template
+from flask_login import login_required, current_user
 
 from models import db, Settings, WeightEntry, FoodLog, Workout, WorkoutExercise, Exercise, SetEntry
 from services import weight_analysis as wa
@@ -10,11 +11,13 @@ bp = Blueprint("dashboard", __name__)
 
 
 @bp.route("/")
+@login_required
 def index():
-    settings = Settings.query.first()
+    uid = current_user.id
+    settings = Settings.query.filter_by(user_id=uid).first()
     today = date.today()
 
-    weight_entries = WeightEntry.query.order_by(WeightEntry.date).all()
+    weight_entries = WeightEntry.query.filter_by(user_id=uid).order_by(WeightEntry.date).all()
     daily = wa.daily_series_with_averages(weight_entries)
 
     current_weight = daily[-1]["weight"] if daily else None
@@ -33,10 +36,10 @@ def index():
     est_target_date = wa.estimate_target_date(avg7 or current_weight, target, week_rate)
 
     # Calories today / 7-day
-    logs_today = FoodLog.query.filter_by(date=today).all()
+    logs_today = FoodLog.query.filter_by(user_id=uid, date=today).all()
     totals_today = na.daily_totals(logs_today)
     week_start = today - timedelta(days=6)
-    logs_week = FoodLog.query.filter(FoodLog.date >= week_start, FoodLog.date <= today).all()
+    logs_week = FoodLog.query.filter(FoodLog.user_id == uid, FoodLog.date >= week_start, FoodLog.date <= today).all()
     nutrition_week = na.weekly_summary(logs_week, settings.calorie_target, settings.protein_target, days=7)
 
     calories_remaining = None
@@ -56,18 +59,20 @@ def index():
             nutrition_week["days_meeting_protein_target"] / nutrition_week["days_logged"] * 100, 0)
 
     # Training
-    workout_today = Workout.query.filter_by(date=today).first() is not None
-    workouts_this_week = Workout.query.filter(Workout.date >= week_start, Workout.date <= today).count()
+    workout_today = Workout.query.filter_by(user_id=uid, date=today).first() is not None
+    workouts_this_week = Workout.query.filter(
+        Workout.user_id == uid, Workout.date >= week_start, Workout.date <= today).count()
     month_start = today.replace(day=1)
-    workouts_this_month = Workout.query.filter(Workout.date >= month_start, Workout.date <= today).count()
+    workouts_this_month = Workout.query.filter(
+        Workout.user_id == uid, Workout.date >= month_start, Workout.date <= today).count()
 
-    all_workout_dates = [w.date for w in Workout.query.all()]
+    all_workout_dates = [w.date for w in Workout.query.filter_by(user_id=uid).all()]
     streak = wka.training_streak(all_workout_dates)
 
     recent_prs = []
-    exercises = Exercise.query.all()
+    exercises = Exercise.query.filter_by(user_id=uid).all()
     for ex in exercises:
-        rows = wka.exercise_history(db, Exercise, WorkoutExercise, Workout, SetEntry, ex.id)
+        rows = wka.exercise_history(db, Exercise, WorkoutExercise, Workout, SetEntry, ex.id, uid)
         progression = wka.progression_series(rows)
         prs = wka.detect_prs(progression)
         for event in prs["events"][:1]:

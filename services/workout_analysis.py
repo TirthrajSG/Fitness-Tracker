@@ -7,12 +7,12 @@ def epley_1rm(weight_kg, reps):
     return round(weight_kg * (1 + reps / 30.0), 2)
 
 
-def exercise_history(db, Exercise, WorkoutExercise, Workout, SetEntry, exercise_id):
+def exercise_history(db, Exercise, WorkoutExercise, Workout, SetEntry, exercise_id, user_id):
     """Return all (workout, workout_exercise, sets) for an exercise, oldest first."""
     rows = (
         db.session.query(WorkoutExercise)
         .join(Workout)
-        .filter(WorkoutExercise.exercise_id == exercise_id)
+        .filter(WorkoutExercise.exercise_id == exercise_id, Workout.user_id == user_id)
         .order_by(Workout.date.asc())
         .all()
     )

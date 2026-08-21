@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 from flask import Blueprint, render_template, request, jsonify
+from flask_login import login_required, current_user
 
 from models import db, Settings, WeightEntry, FoodLog, Workout, WorkoutExercise, Exercise, SetEntry
 from services import weight_analysis as wa
@@ -10,13 +11,16 @@ bp = Blueprint("reports", __name__, url_prefix="/reports")
 
 
 @bp.route("/weekly")
+@login_required
 def weekly():
-    settings = Settings.query.first()
+    uid = current_user.id
+    settings = Settings.query.filter_by(user_id=uid).first()
     today = date.today()
     week_start = today - timedelta(days=6)
 
     weight_entries = WeightEntry.query.filter(
-        WeightEntry.date >= week_start - timedelta(days=30)).order_by(WeightEntry.date).all()
+        WeightEntry.user_id == uid, WeightEntry.date >= week_start - timedelta(days=30)
+    ).order_by(WeightEntry.date).all()
     daily = wa.daily_series_with_averages(weight_entries)
     week_points = [p for p in daily if p["date"] >= week_start]
 
@@ -25,10 +29,11 @@ def weekly():
     weight_change = round(end_weight - start_weight, 2) if start_weight and end_weight else None
     avg_weight = round(sum(p["weight"] for p in week_points) / len(week_points), 2) if week_points else None
 
-    logs = FoodLog.query.filter(FoodLog.date >= week_start, FoodLog.date <= today).all()
+    logs = FoodLog.query.filter(FoodLog.user_id == uid, FoodLog.date >= week_start, FoodLog.date <= today).all()
     nutrition = na.weekly_summary(logs, settings.calorie_target, settings.protein_target, days=7)
 
-    workouts = Workout.query.filter(Workout.date >= week_start, Workout.date <= today).all()
+    workouts = Workout.query.filter(
+        Workout.user_id == uid, Workout.date >= week_start, Workout.date <= today).all()
     total_volume = 0
     for w in workouts:
         for we in w.exercises:
@@ -36,9 +41,9 @@ def weekly():
                 total_volume += s.volume
 
     strength_changes = []
-    exercises = Exercise.query.all()
+    exercises = Exercise.query.filter_by(user_id=uid).all()
     for ex in exercises:
-        rows = wka.exercise_history(db, Exercise, WorkoutExercise, Workout, SetEntry, ex.id)
+        rows = wka.exercise_history(db, Exercise, WorkoutExercise, Workout, SetEntry, ex.id, uid)
         progression = wka.progression_series(rows)
         recent = [s for s in progression if s["date"] >= week_start]
         older = [s for s in progression if s["date"] < week_start]
@@ -60,8 +65,10 @@ def weekly():
 
 
 @bp.route("/trends")
+@login_required
 def trends():
-    entries = WeightEntry.query.order_by(WeightEntry.date).all()
+    uid = current_user.id
+    entries = WeightEntry.query.filter_by(user_id=uid).order_by(WeightEntry.date).all()
     daily = wa.daily_series_with_averages(entries)
 
     recent = daily[-10:] if len(daily) >= 2 else daily
@@ -89,8 +96,9 @@ def trends():
 
 
 @bp.route("/strength-vs-weight")
+@login_required
 def strength_vs_weight():
-    exercises = Exercise.query.order_by(Exercise.name).all()
+    exercises = Exercise.query.filter_by(user_id=current_user.id).order_by(Exercise.name).all()
     selected_id = request.args.get("exercise_id", type=int)
     if not selected_id and exercises:
         selected_id = exercises[0].id
@@ -98,12 +106,14 @@ def strength_vs_weight():
 
 
 @bp.route("/strength-vs-weight/chart-data")
+@login_required
 def strength_vs_weight_data():
+    uid = current_user.id
     exercise_id = request.args.get("exercise_id", type=int)
-    weight_entries = WeightEntry.query.order_by(WeightEntry.date).all()
+    weight_entries = WeightEntry.query.filter_by(user_id=uid).order_by(WeightEntry.date).all()
     daily_weight = wa.daily_series_with_averages(weight_entries)
 
-    rows = wka.exercise_history(db, Exercise, WorkoutExercise, Workout, SetEntry, exercise_id)
+    rows = wka.exercise_history(db, Exercise, WorkoutExercise, Workout, SetEntry, exercise_id, uid)
     progression = wka.progression_series(rows)
 
     weight_by_date = {p["date"]: p["avg_7"] or p["weight"] for p in daily_weight}
@@ -127,21 +137,25 @@ def strength_vs_weight_data():
 
 
 @bp.route("/calorie-vs-weight")
+@login_required
 def calorie_vs_weight():
     return render_template("calorie_vs_weight.html")
 
 
 @bp.route("/calorie-vs-weight/chart-data")
+@login_required
 def calorie_vs_weight_data():
+    uid = current_user.id
     days = int(request.args.get("days", 30))
     cutoff = date.today() - timedelta(days=days - 1)
 
-    weight_entries = WeightEntry.query.filter(WeightEntry.date >= cutoff).order_by(WeightEntry.date).all()
+    weight_entries = WeightEntry.query.filter(
+        WeightEntry.user_id == uid, WeightEntry.date >= cutoff).order_by(WeightEntry.date).all()
     daily_weight = wa.daily_series_with_averages(
-        WeightEntry.query.order_by(WeightEntry.date).all())
+        WeightEntry.query.filter_by(user_id=uid).order_by(WeightEntry.date).all())
     daily_weight = [p for p in daily_weight if p["date"] >= cutoff]
 
-    logs = FoodLog.query.filter(FoodLog.date >= cutoff).all()
+    logs = FoodLog.query.filter(FoodLog.user_id == uid, FoodLog.date >= cutoff).all()
     by_day = na.totals_by_day(logs)
 
     labels = [p["date"].isoformat() for p in daily_weight]

@@ -3,23 +3,13 @@ import io
 import zipfile
 from datetime import datetime
 
-from flask import (Blueprint, render_template, request, redirect, url_for,
-                    flash, send_file, current_app)
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
+from flask_login import login_required, current_user
 
 from models import (db, WeightEntry, BodyMeasurement, Food, FoodLog, Exercise,
                      Workout, WorkoutExercise, SetEntry, WorkoutTemplate, TemplateExercise)
 
 bp = Blueprint("data", __name__, url_prefix="/data")
-
-
-def _is_sqlite():
-    # File-based backup/restore only makes sense against the local SQLite
-    # file. Once DATABASE_URL points at Postgres, use CSV export instead.
-    return current_app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite:///")
-
-
-def _sqlite_db_path():
-    return current_app.config["SQLALCHEMY_DATABASE_URI"].replace("sqlite:///", "", 1)
 
 
 def _table_to_csv(rows, fieldnames, row_to_dict):
@@ -32,41 +22,44 @@ def _table_to_csv(rows, fieldnames, row_to_dict):
 
 
 @bp.route("/")
+@login_required
 def index():
-    return render_template("data.html", is_sqlite=_is_sqlite())
+    return render_template("data.html")
 
 
 @bp.route("/export")
+@login_required
 def export_all():
+    uid = current_user.id
     mem = io.BytesIO()
     with zipfile.ZipFile(mem, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("weight_entries.csv", _table_to_csv(
-            WeightEntry.query.order_by(WeightEntry.date).all(),
+            WeightEntry.query.filter_by(user_id=uid).order_by(WeightEntry.date).all(),
             ["date", "time", "weight_kg", "note"],
             lambda e: {"date": e.date, "time": e.time, "weight_kg": e.weight_kg, "note": e.note or ""}))
 
         zf.writestr("body_measurements.csv", _table_to_csv(
-            BodyMeasurement.query.order_by(BodyMeasurement.date).all(),
+            BodyMeasurement.query.filter_by(user_id=uid).order_by(BodyMeasurement.date).all(),
             ["date", "measurement_type", "value", "unit"],
             lambda e: {"date": e.date, "measurement_type": e.measurement_type,
                        "value": e.value, "unit": e.unit}))
 
         zf.writestr("food_logs.csv", _table_to_csv(
-            FoodLog.query.order_by(FoodLog.date).all(),
+            FoodLog.query.filter_by(user_id=uid).order_by(FoodLog.date).all(),
             ["date", "meal", "food_name", "quantity", "calories", "protein", "carbs", "fat", "fiber"],
             lambda e: {"date": e.date, "meal": e.meal, "food_name": e.food_name, "quantity": e.quantity,
                        "calories": e.calories, "protein": e.protein, "carbs": e.carbs,
                        "fat": e.fat, "fiber": e.fiber}))
 
         zf.writestr("foods.csv", _table_to_csv(
-            Food.query.order_by(Food.name).all(),
+            Food.query.filter_by(user_id=uid).order_by(Food.name).all(),
             ["name", "serving_size", "serving_unit", "calories", "protein", "carbs", "fat", "fiber"],
             lambda e: {"name": e.name, "serving_size": e.serving_size, "serving_unit": e.serving_unit,
                        "calories": e.calories, "protein": e.protein, "carbs": e.carbs,
                        "fat": e.fat, "fiber": e.fiber}))
 
         set_rows = []
-        for w in Workout.query.order_by(Workout.date).all():
+        for w in Workout.query.filter_by(user_id=uid).order_by(Workout.date).all():
             for we in w.exercises:
                 for s in we.sets:
                     set_rows.append({
@@ -87,6 +80,7 @@ def export_all():
 
 
 @bp.route("/import/weight", methods=["POST"])
+@login_required
 def import_weight_csv():
     file = request.files.get("csv_file")
     if not file or file.filename == "":
@@ -105,8 +99,8 @@ def import_weight_csv():
                     entry_time = datetime.strptime(row["time"], "%H:%M:%S").time()
                 except ValueError:
                     entry_time = datetime.strptime(row["time"], "%H:%M").time()
-            db.session.add(WeightEntry(date=entry_date, time=entry_time, weight_kg=weight,
-                                        note=row.get("note") or None))
+            db.session.add(WeightEntry(user_id=current_user.id, date=entry_date, time=entry_time,
+                                        weight_kg=weight, note=row.get("note") or None))
             count += 1
         db.session.commit()
         flash(f"Imported {count} weight entries.", "success")
@@ -116,50 +110,34 @@ def import_weight_csv():
     return redirect(url_for("data.index"))
 
 
-@bp.route("/backup")
-def backup():
-    if not _is_sqlite():
-        flash("File-based backup isn't available on Postgres — use CSV export instead, "
-              "or take a backup from your Render Postgres dashboard.", "danger")
-        return redirect(url_for("data.index"))
-    db.session.commit()
-    filename = f"fitness_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
-    return send_file(_sqlite_db_path(), as_attachment=True, download_name=filename)
-
-
-@bp.route("/restore", methods=["POST"])
-def restore():
-    if not _is_sqlite():
-        flash("File-based restore isn't available on Postgres. Import weight history via CSV, "
-              "or restore from your Render Postgres dashboard.", "danger")
-        return redirect(url_for("data.index"))
-    file = request.files.get("db_file")
-    if not file or file.filename == "":
-        flash("No backup file selected.", "danger")
-        return redirect(url_for("data.index"))
-    if not file.filename.endswith(".db"):
-        flash("Please upload a .db backup file.", "danger")
-        return redirect(url_for("data.index"))
-    try:
-        db.session.remove()
-        db.engine.dispose()
-        file.save(_sqlite_db_path())
-        flash("Database restored. Restart the app to fully reload.", "success")
-    except Exception as e:
-        flash(f"Restore failed: {e}", "danger")
-    return redirect(url_for("data.index"))
-
-
 @bp.route("/clear", methods=["POST"])
+@login_required
 def clear_all():
     confirm = request.form.get("confirm")
     if confirm != "DELETE":
         flash('Type DELETE exactly to confirm clearing all data.', "danger")
         return redirect(url_for("data.index"))
 
-    for model in [SetEntry, WorkoutExercise, Workout, TemplateExercise, WorkoutTemplate,
-                  FoodLog, Food, BodyMeasurement, WeightEntry, Exercise]:
-        model.query.delete()
+    uid = current_user.id
+
+    # Child records of workouts/templates need to go through their parent's
+    # ownership since they don't carry user_id directly.
+    workout_ids = [w.id for w in Workout.query.filter_by(user_id=uid).all()]
+    we_ids = [we.id for we in WorkoutExercise.query.filter(WorkoutExercise.workout_id.in_(workout_ids)).all()]
+    SetEntry.query.filter(SetEntry.workout_exercise_id.in_(we_ids)).delete(synchronize_session=False)
+    WorkoutExercise.query.filter(WorkoutExercise.workout_id.in_(workout_ids)).delete(synchronize_session=False)
+    Workout.query.filter_by(user_id=uid).delete(synchronize_session=False)
+
+    template_ids = [t.id for t in WorkoutTemplate.query.filter_by(user_id=uid).all()]
+    TemplateExercise.query.filter(TemplateExercise.template_id.in_(template_ids)).delete(synchronize_session=False)
+    WorkoutTemplate.query.filter_by(user_id=uid).delete(synchronize_session=False)
+
+    FoodLog.query.filter_by(user_id=uid).delete(synchronize_session=False)
+    Food.query.filter_by(user_id=uid).delete(synchronize_session=False)
+    BodyMeasurement.query.filter_by(user_id=uid).delete(synchronize_session=False)
+    WeightEntry.query.filter_by(user_id=uid).delete(synchronize_session=False)
+    Exercise.query.filter_by(user_id=uid).delete(synchronize_session=False)
+
     db.session.commit()
-    flash("All tracked data has been cleared. Settings were kept.", "info")
+    flash("All your tracked data has been cleared. Your account and settings were kept.", "info")
     return redirect(url_for("data.index"))

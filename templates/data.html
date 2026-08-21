@@ -24,43 +24,23 @@
     </div>
   </div>
 
-  {% if is_sqlite %}
-  <div class="col-md-6">
-    <div class="card metric-card p-3 h-100">
-      <strong>Backup database</strong>
-      <p class="text-muted small mt-1">Download the entire SQLite database file as a single backup.</p>
-      <a href="{{ url_for('data.backup') }}" class="btn btn-outline-secondary">Download backup (.db)</a>
-    </div>
-  </div>
-
-  <div class="col-md-6">
-    <div class="card metric-card p-3 h-100">
-      <strong>Restore database</strong>
-      <p class="text-muted small mt-1">Replaces the current database with an uploaded .db backup file. Restart the app afterward.</p>
-      <form method="post" action="{{ url_for('data.restore') }}" enctype="multipart/form-data" class="d-flex gap-2" onsubmit="return confirm('This replaces all current data with the uploaded backup. Continue?')">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="file" name="db_file" accept=".db" class="form-control" required>
-        <button class="btn btn-outline-secondary">Restore</button>
-      </form>
-    </div>
-  </div>
-  {% else %}
   <div class="col-12">
     <div class="card metric-card p-3 h-100">
-      <strong>Backup / restore (Postgres)</strong>
+      <strong>Backup</strong>
       <p class="text-muted small mt-1">
-        You're running on Postgres, so file-based backup/restore isn't available here. Use the CSV
-        export above as your data backup, or take a snapshot from your Render Postgres dashboard
-        for a full-fidelity backup you can restore from.
+        There's no whole-database backup/restore here — with multiple accounts sharing one local
+        database file, a raw file download would include every account's data, not just yours.
+        Use the CSV export above as your personal backup. If you want a full copy of the database
+        file for disaster recovery, copy <code>instance/fitness.db</code> directly from the project
+        folder while the app isn't running.
       </p>
     </div>
   </div>
-  {% endif %}
 
   <div class="col-12">
     <div class="card metric-card p-3 border border-danger">
       <strong class="text-danger">Clear all data</strong>
-      <p class="text-muted small mt-1">Permanently deletes all weight entries, measurements, foods, food logs, exercises, workouts, and templates. Your settings are kept. This cannot be undone.</p>
+      <p class="text-muted small mt-1">Permanently deletes your weight entries, measurements, foods, food logs, exercises, workouts, and templates. Your account and settings are kept. This cannot be undone. Other accounts are unaffected.</p>
       <form method="post" action="{{ url_for('data.clear_all') }}" class="d-flex gap-2" onsubmit="return confirm('This permanently deletes all tracked data. Are you absolutely sure?')">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="text" name="confirm" class="form-control" placeholder='Type DELETE to confirm' style="max-width:250px" required>

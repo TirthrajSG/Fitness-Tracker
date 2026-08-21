@@ -1,8 +1,9 @@
 from flask import Flask, redirect, url_for, request
 from flask_wtf import CSRFProtect
+from flask_login import LoginManager, current_user
 
 from config import Config
-from models import db, Settings
+from models import db, User, Settings
 
 
 def create_app():
@@ -12,6 +13,15 @@ def create_app():
     db.init_app(app)
     CSRFProtect(app)
 
+    login_manager = LoginManager()
+    login_manager.login_view = "auth.login"
+    login_manager.init_app(app)
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        return db.session.get(User, int(user_id))
+
+    from routes.auth import bp as auth_bp
     from routes.onboarding import bp as onboarding_bp
     from routes.dashboard import bp as dashboard_bp
     from routes.weight import bp as weight_bp
@@ -22,6 +32,7 @@ def create_app():
     from routes.settings import bp as settings_bp
     from routes.data import bp as data_bp
 
+    app.register_blueprint(auth_bp)
     app.register_blueprint(onboarding_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(weight_bp)
@@ -34,16 +45,17 @@ def create_app():
 
     with app.app_context():
         db.create_all()
-        if Settings.query.first() is None:
-            db.session.add(Settings())
-            db.session.commit()
 
     @app.before_request
-    def require_onboarding():
-        exempt = {"onboarding.setup", "static"}
+    def require_login_and_onboarding():
+        exempt = {"auth.login", "auth.register", "static"}
         if request.endpoint in exempt or request.endpoint is None:
             return
-        settings = Settings.query.first()
+        if not current_user.is_authenticated:
+            return redirect(url_for("auth.login"))
+        if request.endpoint == "onboarding.setup":
+            return
+        settings = Settings.query.filter_by(user_id=current_user.id).first()
         if settings is None or not settings.onboarded:
             return redirect(url_for("onboarding.setup"))
 
@@ -60,9 +72,12 @@ def create_app():
         return f"{value:.{decimals}f}"
 
     @app.context_processor
-    def inject_dark_mode():
-        settings = Settings.query.first()
-        return {"dark_mode": bool(settings and settings.dark_mode)}
+    def inject_globals():
+        dark_mode = False
+        if current_user.is_authenticated:
+            settings = Settings.query.filter_by(user_id=current_user.id).first()
+            dark_mode = bool(settings and settings.dark_mode)
+        return {"dark_mode": dark_mode}
 
     return app
 

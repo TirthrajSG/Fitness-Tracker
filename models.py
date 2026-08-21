@@ -1,12 +1,22 @@
-from datetime import datetime, date as date_cls
+from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import UserMixin
 
 db = SQLAlchemy()
+
+
+class User(db.Model, UserMixin):
+    __tablename__ = "users"
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False, index=True)
+    password_hash = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class Settings(db.Model):
     __tablename__ = "settings"
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, unique=True, index=True)
     onboarded = db.Column(db.Boolean, default=False, nullable=False)
 
     name = db.Column(db.String(80), default="")
@@ -33,6 +43,7 @@ class Settings(db.Model):
 class WeightEntry(db.Model):
     __tablename__ = "weight_entries"
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     date = db.Column(db.Date, nullable=False, index=True)
     time = db.Column(db.Time)
     weight_kg = db.Column(db.Float, nullable=False)
@@ -43,6 +54,7 @@ class WeightEntry(db.Model):
 class BodyMeasurement(db.Model):
     __tablename__ = "body_measurements"
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     date = db.Column(db.Date, nullable=False, index=True)
     measurement_type = db.Column(db.String(20), nullable=False)
     # waist, chest, neck, hip, left_arm, right_arm, left_thigh, right_thigh
@@ -53,6 +65,7 @@ class BodyMeasurement(db.Model):
 class Food(db.Model):
     __tablename__ = "foods"
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     name = db.Column(db.String(120), nullable=False, index=True)
     serving_size = db.Column(db.Float, default=1.0)
     serving_unit = db.Column(db.String(30), default="serving")
@@ -66,6 +79,7 @@ class Food(db.Model):
 class FoodLog(db.Model):
     __tablename__ = "food_logs"
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     date = db.Column(db.Date, nullable=False, index=True)
     meal = db.Column(db.String(20), nullable=False)
     # breakfast/lunch/dinner/snack/other
@@ -84,6 +98,7 @@ class FoodLog(db.Model):
 class Exercise(db.Model):
     __tablename__ = "exercises"
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     name = db.Column(db.String(120), nullable=False, index=True)
     muscle_group = db.Column(db.String(50))
     equipment = db.Column(db.String(50))
@@ -93,6 +108,7 @@ class Exercise(db.Model):
 class Workout(db.Model):
     __tablename__ = "workouts"
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     date = db.Column(db.Date, nullable=False, index=True)
     name = db.Column(db.String(120), default="Workout")
     duration_minutes = db.Column(db.Integer)
@@ -142,6 +158,7 @@ class SetEntry(db.Model):
 class WorkoutTemplate(db.Model):
     __tablename__ = "workout_templates"
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     name = db.Column(db.String(120), nullable=False)
 
     exercises = db.relationship(
@@ -163,6 +180,7 @@ class TemplateExercise(db.Model):
 class Reminder(db.Model):
     __tablename__ = "reminders"
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     kind = db.Column(db.String(20), nullable=False)  # weigh_in / log_food / workout
     time_of_day = db.Column(db.Time, nullable=False)
     enabled = db.Column(db.Boolean, default=True)

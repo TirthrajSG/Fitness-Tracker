@@ -8,41 +8,83 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body class="{{ 'dark-mode' if dark_mode else '' }}">
-<div class="d-flex">
-  <nav id="sidebar" class="d-none d-md-block" style="width:220px;">
-    <div class="brand">🏋 Fitness Tracker</div>
-    {% set nav = [
-      ('dashboard.index', 'Dashboard'),
-      ('weight.index', 'Weight'),
-      ('nutrition.index', 'Nutrition'),
-      ('workout.index', 'Workout'),
-      ('workout.exercises', 'Exercises'),
-      ('workout.progress', 'Progress'),
-      ('calendar.index', 'Calendar'),
-      ('reports.weekly', 'Reports'),
-      ('data.index', 'Data'),
-      ('settings.index', 'Settings'),
-    ] %}
-    {% for endpoint, label in nav %}
-      <a href="{{ url_for(endpoint) }}" class="{{ 'active' if request.endpoint == endpoint or (endpoint=='reports.weekly' and request.endpoint and request.endpoint.startswith('reports.')) else '' }}">{{ label }}</a>
+
+{% set nav = [
+  ('dashboard.index', 'Dashboard', '📊'),
+  ('weight.index', 'Weight', '⚖️'),
+  ('nutrition.index', 'Nutrition', '🍽️'),
+  ('workout.index', 'Workout', '🏋️'),
+  ('workout.exercises', 'Exercises', '💪'),
+  ('workout.progress', 'Progress', '📈'),
+  ('calendar.index', 'Calendar', '📅'),
+  ('reports.weekly', 'Reports', '📄'),
+  ('data.index', 'Data', '💾'),
+  ('settings.index', 'Settings', '⚙️'),
+] %}
+{% macro is_active(endpoint) -%}
+  {{ 'active' if request.endpoint == endpoint or (endpoint == 'reports.weekly' and request.endpoint and request.endpoint.startswith('reports.')) else '' }}
+{%- endmacro %}
+
+<!-- Mobile top bar: stays put, opens an offcanvas panel rather than pushing content -->
+<nav class="navbar navbar-light bg-white border-bottom d-md-none px-3 sticky-top">
+  <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar">
+    ☰
+  </button>
+  <span class="navbar-brand mb-0 h1 ms-2">🏋 Fitness Tracker</span>
+</nav>
+
+<!-- Mobile offcanvas nav (slides over content, doesn't shove the page down) -->
+<div class="offcanvas offcanvas-start" tabindex="-1" id="mobileSidebar">
+  <div class="offcanvas-header">
+    <span class="brand mb-0">🏋 Fitness Tracker</span>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+  </div>
+  <div class="offcanvas-body p-0">
+    {% for endpoint, label, icon in nav %}
+      <a href="{{ url_for(endpoint) }}" class="{{ is_active(endpoint) }}" data-bs-dismiss="offcanvas">
+        <span class="nav-icon">{{ icon }}</span><span class="nav-label">{{ label }}</span>
+      </a>
     {% endfor %}
+    {% if current_user.is_authenticated %}
+    <form method="post" action="{{ url_for('auth.logout') }}" class="px-3 mt-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="text-muted small mb-2">Signed in as {{ current_user.username }}</div>
+      <button class="btn btn-outline-secondary btn-sm w-100">Sign out</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="d-flex">
+  <!-- Desktop sidebar: collapsible to icon-only via the toggle button -->
+  <nav id="sidebar" class="d-none d-md-flex flex-column">
+    <div class="d-flex align-items-center justify-content-between">
+      <span class="brand mb-0">🏋 <span class="nav-label">Fitness Tracker</span></span>
+      <button id="sidebarToggle" class="btn btn-sm btn-link text-light" title="Hide/show panel">
+        <span id="toggleIcon">«</span>
+      </button>
+    </div>
+    <div class="flex-grow-1">
+      {% for endpoint, label, icon in nav %}
+        <a href="{{ url_for(endpoint) }}" class="{{ is_active(endpoint) }}" title="{{ label }}">
+          <span class="nav-icon">{{ icon }}</span><span class="nav-label">{{ label }}</span>
+        </a>
+      {% endfor %}
+    </div>
+    {% if current_user.is_authenticated %}
+    <div class="border-top pt-2 mt-2 px-2 pb-2">
+      <div class="nav-label text-muted small mb-2 px-2">Signed in as {{ current_user.username }}</div>
+      <form method="post" action="{{ url_for('auth.logout') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-outline-light btn-sm w-100" title="Sign out">
+          <span class="nav-icon">🚪</span><span class="nav-label">Sign out</span>
+        </button>
+      </form>
+    </div>
+    {% endif %}
   </nav>
 
-  <div class="flex-grow-1">
-    <nav class="navbar navbar-expand-md navbar-light bg-white border-bottom d-md-none px-3">
-      <span class="navbar-brand mb-0 h1">🏋 Fitness Tracker</span>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mobileNav">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="mobileNav">
-        <ul class="navbar-nav mt-2">
-          {% for endpoint, label in nav %}
-          <li class="nav-item"><a class="nav-link" href="{{ url_for(endpoint) }}">{{ label }}</a></li>
-          {% endfor %}
-        </ul>
-      </div>
-    </nav>
-
+  <div class="flex-grow-1" style="min-width:0">
     <div class="container-fluid p-3 p-md-4">
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -62,6 +104,28 @@
 
 <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/chart.js') }}"></script>
+<script>
+(function () {
+  const sidebar = document.getElementById('sidebar');
+  const toggleBtn = document.getElementById('sidebarToggle');
+  const toggleIcon = document.getElementById('toggleIcon');
+  if (!sidebar || !toggleBtn) return;
+
+  function apply(collapsed) {
+    sidebar.classList.toggle('collapsed', collapsed);
+    toggleIcon.textContent = collapsed ? '»' : '«';
+  }
+
+  const saved = localStorage.getItem('sidebarCollapsed') === '1';
+  apply(saved);
+
+  toggleBtn.addEventListener('click', () => {
+    const collapsed = !sidebar.classList.contains('collapsed');
+    apply(collapsed);
+    localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
+  });
+})();
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

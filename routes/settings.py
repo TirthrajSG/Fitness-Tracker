@@ -1,5 +1,6 @@
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask_login import login_required, current_user
 
 from models import db, Settings
 from services.nutrition_analysis import estimate_tdee
@@ -8,8 +9,9 @@ bp = Blueprint("settings", __name__, url_prefix="/settings")
 
 
 @bp.route("/", methods=["GET", "POST"])
+@login_required
 def index():
-    settings = Settings.query.first()
+    settings = Settings.query.filter_by(user_id=current_user.id).first_or_404()
 
     if request.method == "POST":
         try:
@@ -41,8 +43,9 @@ def index():
 
 
 @bp.route("/recalculate-tdee", methods=["POST"])
+@login_required
 def recalculate_tdee():
-    settings = Settings.query.first()
+    settings = Settings.query.filter_by(user_id=current_user.id).first_or_404()
     try:
         current_weight = float(request.form["current_weight"])
         tdee = estimate_tdee(settings.sex, current_weight, settings.height_cm,

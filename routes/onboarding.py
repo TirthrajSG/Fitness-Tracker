@@ -1,7 +1,8 @@
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask_login import current_user
 
-from models import db, Settings
+from models import db, Settings, WeightEntry
 from services.nutrition_analysis import estimate_tdee
 
 bp = Blueprint("onboarding", __name__)
@@ -9,7 +10,12 @@ bp = Blueprint("onboarding", __name__)
 
 @bp.route("/setup", methods=["GET", "POST"])
 def setup():
-    settings = Settings.query.first()
+    settings = Settings.query.filter_by(user_id=current_user.id).first()
+    if settings is None:
+        settings = Settings(user_id=current_user.id)
+        db.session.add(settings)
+        db.session.commit()
+
     if settings.onboarded:
         return redirect(url_for("dashboard.index"))
 
@@ -38,9 +44,8 @@ def setup():
             settings.onboarded = True
             db.session.commit()
 
-            from models import WeightEntry
-            db.session.add(WeightEntry(date=datetime.utcnow().date(), weight_kg=settings.starting_weight_kg,
-                                        note="Starting weight"))
+            db.session.add(WeightEntry(user_id=current_user.id, date=datetime.utcnow().date(),
+                                        weight_kg=settings.starting_weight_kg, note="Starting weight"))
             db.session.commit()
 
             return redirect(url_for("dashboard.index"))

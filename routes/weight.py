@@ -1,5 +1,6 @@
 from datetime import datetime, date, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask_login import login_required, current_user
 
 from models import db, WeightEntry, Settings
 from services import weight_analysis as wa
@@ -8,18 +9,20 @@ bp = Blueprint("weight", __name__, url_prefix="/weight")
 
 
 @bp.route("/")
+@login_required
 def index():
+    uid = current_user.id
     date_from = request.args.get("from")
     date_to = request.args.get("to")
 
-    query = WeightEntry.query
+    query = WeightEntry.query.filter_by(user_id=uid)
     if date_from:
         query = query.filter(WeightEntry.date >= datetime.strptime(date_from, "%Y-%m-%d").date())
     if date_to:
         query = query.filter(WeightEntry.date <= datetime.strptime(date_to, "%Y-%m-%d").date())
     entries = query.order_by(WeightEntry.date.desc(), WeightEntry.time.desc()).all()
 
-    all_entries = WeightEntry.query.order_by(WeightEntry.date).all()
+    all_entries = WeightEntry.query.filter_by(user_id=uid).order_by(WeightEntry.date).all()
     avg7 = wa.rolling_average(all_entries, 7)
     avg14 = wa.rolling_average(all_entries, 14)
     avg30 = wa.rolling_average(all_entries, 30)
@@ -47,6 +50,7 @@ def index():
 
 
 @bp.route("/add", methods=["POST"])
+@login_required
 def add():
     try:
         entry_date = datetime.strptime(request.form["date"], "%Y-%m-%d").date()
@@ -56,7 +60,7 @@ def add():
         weight = float(request.form["weight"])
         if weight <= 0 or weight > 500:
             raise ValueError("Weight out of realistic range")
-        entry = WeightEntry(date=entry_date, time=entry_time, weight_kg=weight,
+        entry = WeightEntry(user_id=current_user.id, date=entry_date, time=entry_time, weight_kg=weight,
                              note=request.form.get("note", "").strip() or None)
         db.session.add(entry)
         db.session.commit()
@@ -67,8 +71,9 @@ def add():
 
 
 @bp.route("/edit/<int:entry_id>", methods=["POST"])
+@login_required
 def edit(entry_id):
-    entry = WeightEntry.query.get_or_404(entry_id)
+    entry = WeightEntry.query.filter_by(id=entry_id, user_id=current_user.id).first_or_404()
     try:
         entry.date = datetime.strptime(request.form["date"], "%Y-%m-%d").date()
         if request.form.get("time"):
@@ -86,8 +91,9 @@ def edit(entry_id):
 
 
 @bp.route("/delete/<int:entry_id>", methods=["POST"])
+@login_required
 def delete(entry_id):
-    entry = WeightEntry.query.get_or_404(entry_id)
+    entry = WeightEntry.query.filter_by(id=entry_id, user_id=current_user.id).first_or_404()
     db.session.delete(entry)
     db.session.commit()
     flash("Weight entry deleted.", "info")
@@ -95,10 +101,12 @@ def delete(entry_id):
 
 
 @bp.route("/chart-data")
+@login_required
 def chart_data():
+    uid = current_user.id
     range_key = request.args.get("range", "90")
-    settings = Settings.query.first()
-    entries = WeightEntry.query.order_by(WeightEntry.date).all()
+    settings = Settings.query.filter_by(user_id=uid).first()
+    entries = WeightEntry.query.filter_by(user_id=uid).order_by(WeightEntry.date).all()
 
     if range_key != "all":
         days = int(range_key)

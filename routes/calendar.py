@@ -1,6 +1,7 @@
 import calendar as cal
 from datetime import date
 from flask import Blueprint, render_template, request
+from flask_login import login_required, current_user
 
 from models import WeightEntry, FoodLog, Workout, Settings
 from services import nutrition_analysis as na
@@ -9,22 +10,25 @@ bp = Blueprint("calendar", __name__, url_prefix="/calendar")
 
 
 @bp.route("/")
+@login_required
 def index():
+    uid = current_user.id
     today = date.today()
     year = request.args.get("year", type=int, default=today.year)
     month = request.args.get("month", type=int, default=today.month)
 
-    settings = Settings.query.first()
+    settings = Settings.query.filter_by(user_id=uid).first()
     first_day = date(year, month, 1)
     days_in_month = cal.monthrange(year, month)[1]
     last_day = date(year, month, days_in_month)
 
     weight_days = {e.date for e in WeightEntry.query.filter(
-        WeightEntry.date >= first_day, WeightEntry.date <= last_day)}
+        WeightEntry.user_id == uid, WeightEntry.date >= first_day, WeightEntry.date <= last_day)}
     workout_days = {w.date for w in Workout.query.filter(
-        Workout.date >= first_day, Workout.date <= last_day)}
+        Workout.user_id == uid, Workout.date >= first_day, Workout.date <= last_day)}
 
-    logs = FoodLog.query.filter(FoodLog.date >= first_day, FoodLog.date <= last_day).all()
+    logs = FoodLog.query.filter(
+        FoodLog.user_id == uid, FoodLog.date >= first_day, FoodLog.date <= last_day).all()
     by_day = na.totals_by_day(logs)
     nutrition_days = set(by_day.keys())
     protein_met_days = {
