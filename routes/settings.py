@@ -1,11 +1,13 @@
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
+from werkzeug.security import check_password_hash, generate_password_hash
 
-from models import db, Settings
+from models import db, Settings, User
 from services.nutrition_analysis import estimate_tdee
 
 bp = Blueprint("settings", __name__, url_prefix="/settings")
+MIN_PASSWORD_LENGTH = 8
 
 
 @bp.route("/", methods=["GET", "POST"])
@@ -55,4 +57,30 @@ def recalculate_tdee():
         flash(f"Estimated TDEE updated to {tdee} kcal.", "success")
     except (ValueError, KeyError) as e:
         flash(f"Could not recalculate: {e}", "danger")
+    return redirect(url_for("settings.index"))
+
+
+@bp.route("/change-password", methods=["POST"])
+@login_required
+def change_password():
+    current_password = request.form.get("current_password", "")
+    new_password = request.form.get("new_password", "")
+    confirm_new_password = request.form.get("confirm_new_password", "")
+
+    user = db.session.get(User, current_user.id)
+    if user is None:
+        flash("User not found.", "danger")
+        return redirect(url_for("settings.index"))
+
+    if not check_password_hash(user.password_hash, current_password):
+        flash("Current password is incorrect.", "danger")
+    elif len(new_password) < MIN_PASSWORD_LENGTH:
+        flash(f"New password must be at least {MIN_PASSWORD_LENGTH} characters.", "danger")
+    elif new_password != confirm_new_password:
+        flash("New passwords do not match.", "danger")
+    else:
+        user.password_hash = generate_password_hash(new_password)
+        db.session.commit()
+        flash("Password changed successfully.", "success")
+
     return redirect(url_for("settings.index"))

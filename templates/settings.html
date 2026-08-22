@@ -63,4 +63,24 @@
 <div class="text-muted small mt-2">
   Note: weight/height are stored internally in kg/cm; unit selection here currently affects display preference only.
 </div>
+
+<form method="post" action="{{ url_for('settings.change_password') }}" class="card metric-card p-4 mt-4" style="max-width:700px">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h6 class="text-muted">SECURITY</h6>
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <label class="form-label">Current password</label>
+      <input type="password" class="form-control" name="current_password" required>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">New password</label>
+      <input type="password" class="form-control" name="new_password" minlength="8" required>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Confirm new password</label>
+      <input type="password" class="form-control" name="confirm_new_password" minlength="8" required>
+    </div>
+  </div>
+  <button class="btn btn-outline-primary">Change password</button>
+</form>
 {% endblock %}

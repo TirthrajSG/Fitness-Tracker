@@ -109,21 +109,40 @@
   const sidebar = document.getElementById('sidebar');
   const toggleBtn = document.getElementById('sidebarToggle');
   const toggleIcon = document.getElementById('toggleIcon');
-  if (!sidebar || !toggleBtn) return;
 
-  function apply(collapsed) {
-    sidebar.classList.toggle('collapsed', collapsed);
-    toggleIcon.textContent = collapsed ? '»' : '«';
+  if (sidebar && toggleBtn) {
+    function apply(collapsed) {
+      sidebar.classList.toggle('collapsed', collapsed);
+      toggleIcon.textContent = collapsed ? '»' : '«';
+    }
+
+    const saved = localStorage.getItem('sidebarCollapsed') === '1';
+    apply(saved);
+
+    toggleBtn.addEventListener('click', () => {
+      const collapsed = !sidebar.classList.contains('collapsed');
+      apply(collapsed);
+      localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
+    });
   }
 
-  const saved = localStorage.getItem('sidebarCollapsed') === '1';
-  apply(saved);
-
-  toggleBtn.addEventListener('click', () => {
-    const collapsed = !sidebar.classList.contains('collapsed');
-    apply(collapsed);
-    localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
-  });
+  const mobileSidebarEl = document.getElementById('mobileSidebar');
+  if (mobileSidebarEl && window.bootstrap) {
+    const mobileSidebar = bootstrap.Offcanvas.getOrCreateInstance(mobileSidebarEl);
+    mobileSidebarEl.querySelectorAll('a[href]').forEach((link) => {
+      link.addEventListener('click', (event) => {
+        const href = link.getAttribute('href');
+        if (!href || href === '#') {
+          return;
+        }
+        event.preventDefault();
+        mobileSidebar.hide();
+        setTimeout(() => {
+          window.location.href = href;
+        }, 120);
+      });
+    });
+  }
 })();
 </script>
 {% block scripts %}{% endblock %}

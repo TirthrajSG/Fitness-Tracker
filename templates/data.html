@@ -14,6 +14,14 @@
 
   <div class="col-md-6">
     <div class="card metric-card p-3 h-100">
+      <strong>Export account database</strong>
+      <p class="text-muted small mt-1">Download a database file that contains only this account's data and settings. Each account can keep its own separate backup file.</p>
+      <a href="{{ url_for('data.export_database_file') }}" class="btn btn-outline-primary">Export account DB (.db)</a>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card metric-card p-3 h-100">
       <strong>Import weight history</strong>
       <p class="text-muted small mt-1">CSV columns: date, time (optional), weight_kg, note (optional). Date format YYYY-MM-DD.</p>
       <form method="post" action="{{ url_for('data.import_weight_csv') }}" enctype="multipart/form-data" class="d-flex gap-2">
@@ -24,15 +32,25 @@
     </div>
   </div>
 
+  <div class="col-md-6">
+    <div class="card metric-card p-3 h-100">
+      <strong>Import account database</strong>
+      <p class="text-muted small mt-1">Restores exported account data into your current account. If the file came from another account, enter that account's password to proceed.</p>
+      <form method="post" action="{{ url_for('data.import_database_file') }}" enctype="multipart/form-data" class="d-flex flex-column gap-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="file" name="db_file" accept=".db,.sqlite,.sqlite3" class="form-control" required>
+        <input type="password" name="source_password" class="form-control" placeholder="Source account password (required for cross-account import)">
+        <button class="btn btn-outline-primary" onclick="return confirm('This will replace your current tracked data with the imported account data. Continue?')">Import account DB</button>
+      </form>
+    </div>
+  </div>
+
   <div class="col-12">
     <div class="card metric-card p-3 h-100">
       <strong>Backup</strong>
       <p class="text-muted small mt-1">
-        There's no whole-database backup/restore here — with multiple accounts sharing one local
-        database file, a raw file download would include every account's data, not just yours.
-        Use the CSV export above as your personal backup. If you want a full copy of the database
-        file for disaster recovery, copy <code>instance/fitness.db</code> directly from the project
-        folder while the app isn't running.
+        Use account DB export/import for complete account-level backups and migration.
+        CSV export/import remains available for quick data sharing and spreadsheet workflows.
       </p>
     </div>
   </div>

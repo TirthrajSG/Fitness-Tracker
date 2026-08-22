@@ -30,6 +30,33 @@ body.dark-mode .form-select {
   color: #e5e7eb;
   border-color: #2b3244;
 }
+body.dark-mode .form-control::placeholder {
+  color: #94a3b8;
+}
+body.dark-mode .table {
+  --bs-table-bg: #171c27;
+  --bs-table-striped-bg: #1b2230;
+  --bs-table-striped-color: #e5e7eb;
+  --bs-table-active-bg: #232c3e;
+  --bs-table-active-color: #ffffff;
+  --bs-table-hover-bg: #212a3b;
+  --bs-table-hover-color: #ffffff;
+  --bs-table-color: #e5e7eb;
+  --bs-table-border-color: #2b3244;
+}
+body.dark-mode .table th,
+body.dark-mode .table td {
+  color: inherit;
+}
+body.dark-mode .bg-light {
+  background-color: #131924 !important;
+  color: #e5e7eb !important;
+}
+body.dark-mode .alert-light {
+  background-color: #171c27;
+  color: #e5e7eb;
+  border-color: #2b3244;
+}
 
 #sidebar {
   min-height: 100vh;
@@ -99,4 +126,5 @@ body.dark-mode .form-select {
 .pr-badge { background: #fef3c7; color: #92400e; border-radius: .4rem; padding: .1rem .5rem; font-size: .78rem; }
 
 .calendar-cell { min-height: 90px; border: 1px solid #e5e7eb; padding: 4px; font-size: .78rem; }
-body.dark-mode .calendar-cell { border-color: #262c3a; }
+body.dark-mode .calendar-cell { border-color: #262c3a; background-color: #171c27; }
+body.dark-mode .calendar-cell.bg-light { background-color: #131924 !important; }
